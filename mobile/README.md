@@ -7,6 +7,12 @@ Figma reference:
 - `design/figma-spec.md` — mapping of key product flows to screen structure.
 - `src/theme/tokens.ts` — black/white premium design tokens.
 - `src/config/routes.ts` — route identifiers matching primary app flows.
+- `src/components/PlaceholderScreen.tsx` — reusable screen scaffold for rapid UI iteration.
+- `App.tsx` — route-driven shell implementing the design baseline navigation flow.
 
-## Next implementation step
-Scaffold Expo app and wire these tokens/routes into React Navigation + screen components.
+## Run (Expo)
+```bash
+cd mobile
+npm install
+npm run start
+```
