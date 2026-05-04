@@ -12,6 +12,7 @@ This repository is initialized for building **Raritone**, a production-ready vir
 ## Target structure
 ```
 /raritone-app
+  /frontend
   /mobile
   /backend
   /ai-models
