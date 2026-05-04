@@ -1,9 +1,14 @@
 from enum import Enum
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 
-app = FastAPI(title="Raritone API", version="0.2.0")
+from app.services.tryon_pipeline import TryOnJobStore, TryOnPipelineService
+
+app = FastAPI(title="Raritone API", version="0.3.0")
+
+job_store = TryOnJobStore()
+pipeline_service = TryOnPipelineService(job_store)
 
 
 class Measurements(BaseModel):
@@ -49,12 +54,7 @@ def health_check() -> dict[str, str]:
 @app.post("/scan-body")
 def scan_body(payload: BodyScanRequest) -> dict:
     _ = payload
-    measurements = Measurements(
-        height_cm=172.0,
-        chest_cm=96.0,
-        waist_cm=82.0,
-        hips_cm=99.0,
-    )
+    measurements = Measurements(height_cm=172.0, chest_cm=96.0, waist_cm=82.0, hips_cm=99.0)
     return {"measurements": measurements.model_dump(), "source": "mock"}
 
 
@@ -64,33 +64,28 @@ def generate_avatar(measurements: Measurements) -> dict[str, str]:
     return {"avatar_model_url": "https://cdn.raritone.dev/avatars/mock-avatar.glb"}
 
 
-@app.post("/tryon")
-def try_on(payload: TryOnRequest) -> dict:
-    fitted_items = []
-    for item in payload.items:
-        fit_score = {
-            ItemCategory.clothes: 0.92,
-            ItemCategory.shoes: 0.89,
-            ItemCategory.jewellery: 0.95,
-            ItemCategory.accessories: 0.9,
-        }[item.category]
-        fitted_items.append(
-            {
-                "sku": item.sku,
-                "category": item.category,
-                "fit_score": fit_score,
-                "overlay_asset_url": str(item.asset_url),
-            }
-        )
-
-    if payload.mode == RenderMode.three_d:
-        preview_url = "https://cdn.raritone.dev/previews/mock-preview-3d.glb"
-    else:
-        preview_url = "https://cdn.raritone.dev/previews/mock-preview-2d.png"
-
+@app.post("/tryon/jobs")
+def create_tryon_job(payload: TryOnRequest) -> dict:
+    fitted_items = [{"sku": item.sku, "category": item.category, "asset_url": str(item.asset_url)} for item in payload.items]
+    job = pipeline_service.submit(render_mode=payload.mode.value)
     return {
-        "preview_url": preview_url,
+        "job_id": job.job_id,
+        "status": job.status,
+        "progress": job.progress,
         "render_mode": payload.mode,
-        "fitted_items": fitted_items,
-        "notes": "Prototype try-on response. Real cloth simulation/physics is pending integration.",
+        "items": fitted_items,
+    }
+
+
+@app.get("/tryon/jobs/{job_id}")
+def get_tryon_job(job_id: str) -> dict:
+    job = job_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "progress": job.progress,
+        "preview_url": job.result_preview_url,
+        "error": job.error,
     }
