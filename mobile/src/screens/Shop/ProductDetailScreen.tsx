@@ -1,0 +1,3 @@
+import React from 'react';import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';import { colors, radius, spacing, typography } from '../../theme/tokens';
+export function ProductDetailScreen(){return <View style={s.c}><Text style={s.t}>Product Detail</Text><Text style={s.d}>Price: $129 • Premium Fit</Text><TouchableOpacity style={s.b}><Text style={s.bt}>Try-On</Text></TouchableOpacity></View>}
+const s=StyleSheet.create({c:{width:'100%',gap:spacing.md},t:{...typography.heading2,color:colors.primaryText},d:{...typography.body,color:colors.secondaryText},b:{backgroundColor:colors.primaryText,borderRadius:radius.md,padding:spacing.md},bt:{...typography.title,color:colors.background,textAlign:'center'}})
