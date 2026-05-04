@@ -7,6 +7,7 @@ python -m compileall backend/app backend/tests
 echo "[2/4] Backend tests"
 (
   cd backend
+  source .venv/bin/activate
   pytest -q
 )
 
@@ -16,5 +17,5 @@ node -e "const fs=require('fs');JSON.parse(fs.readFileSync('mobile/package.json'
 echo "[4/4] Mobile start check"
 (
   cd mobile
-  npm run start
+  npm run start -- --non-interactive
 )

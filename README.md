@@ -19,15 +19,15 @@ This repository is initialized for building **Raritone**, a production-ready vir
   /api
 ```
 
-## Verification command
-Run all current checks:
+## Setup + verify
+```bash
+./scripts_setup.sh
+```
+
+## Verify only (after setup)
 ```bash
 ./scripts_verify.sh
 ```
-
-## Current environment requirements
-- Backend tests require installed dependencies from `backend/requirements.txt`.
-- Mobile start requires Expo CLI available from project dependencies (`npm install` in `mobile/`).
 
 ## Initial development workflow
 Build in small milestones:
