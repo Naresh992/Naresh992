@@ -1,8 +1,12 @@
-# Mobile App (Planned)
+# Mobile App (Frontend)
 
-The React Native (Expo) client will be scaffolded in the next milestone.
+Figma reference:
+- https://www.figma.com/design/dJN9LcXOoB7lLHTZznNO8g/Raritone_Final?node-id=1-702&m=dev
 
-Suggested next command:
-```bash
-npx create-expo-app@latest mobile-app --template
-```
+## Added in this repo
+- `design/figma-spec.md` — mapping of key product flows to screen structure.
+- `src/theme/tokens.ts` — black/white premium design tokens.
+- `src/config/routes.ts` — route identifiers matching primary app flows.
+
+## Next implementation step
+Scaffold Expo app and wire these tokens/routes into React Navigation + screen components.
