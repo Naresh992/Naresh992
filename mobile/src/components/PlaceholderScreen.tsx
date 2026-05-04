@@ -2,6 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../theme/tokens';
+import { LoginOtpScreen } from '../screens/Auth/LoginOtpScreen';
+import { TryOnStudioScreen } from '../screens/TryOn/TryOnStudioScreen';
 
 type Props = {
   routeName: string;
@@ -9,17 +11,18 @@ type Props = {
 
 const screenDescriptions: Record<string, string> = {
   SplashScreen: 'Launch animation + session bootstrap',
-  LoginOtpScreen: 'Email/OTP entry and verification',
   SocialLoginScreen: 'Google / Apple social auth',
   CameraScanScreen: 'Body scan camera capture and pose overlay',
   AvatarPreviewScreen: '3D avatar preview and confirmation',
-  TryOnStudioScreen: 'Outfit try-on with 2D/3D mode switch',
   ProductListScreen: 'Categories and product discovery feed',
   ProductDetailScreen: 'Product details + Try-On CTA',
   ProfileHomeScreen: 'Saved looks, measurements, and orders',
 };
 
 export function PlaceholderScreen({ routeName }: Props) {
+  if (routeName === 'LoginOtpScreen') return <LoginOtpScreen />;
+  if (routeName === 'TryOnStudioScreen') return <TryOnStudioScreen />;
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.card}>

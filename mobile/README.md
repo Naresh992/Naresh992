@@ -7,8 +7,10 @@ Figma reference:
 - `design/figma-spec.md` — mapping of key product flows to screen structure.
 - `src/theme/tokens.ts` — black/white premium design tokens.
 - `src/config/routes.ts` — route identifiers matching primary app flows.
-- `src/components/PlaceholderScreen.tsx` — reusable screen scaffold for rapid UI iteration.
-- `App.tsx` — route-driven shell implementing the design baseline navigation flow.
+- `src/components/PlaceholderScreen.tsx` — route-aware screen scaffold.
+- `src/screens/Auth/LoginOtpScreen.tsx` — first implemented auth screen.
+- `src/screens/TryOn/TryOnStudioScreen.tsx` — first implemented try-on studio screen.
+- `App.tsx` — route-driven shell implementing baseline navigation flow.
 
 ## Run (Expo)
 ```bash
