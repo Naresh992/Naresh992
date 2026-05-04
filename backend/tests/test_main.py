@@ -32,13 +32,55 @@ def test_generate_avatar() -> None:
     assert "avatar_model_url" in response.json()
 
 
-def test_try_on() -> None:
-    response = client.post(
-        "/tryon",
-        params={
-            "avatar_model_url": "s3://raritone-dev/avatars/mock-avatar.glb",
-            "garment_model_url": "s3://raritone-dev/garments/mock-garment.glb",
-        },
-    )
+def test_try_on_with_multiple_categories_2d() -> None:
+    payload = {
+        "avatar_model_url": "https://cdn.raritone.dev/avatars/mock-avatar.glb",
+        "mode": "2d",
+        "items": [
+            {
+                "sku": "TSHIRT-01",
+                "category": "clothes",
+                "asset_url": "https://cdn.raritone.dev/assets/tshirt.png",
+            },
+            {
+                "sku": "SNEAKER-02",
+                "category": "shoes",
+                "asset_url": "https://cdn.raritone.dev/assets/sneaker.glb",
+            },
+            {
+                "sku": "RING-03",
+                "category": "jewellery",
+                "asset_url": "https://cdn.raritone.dev/assets/ring.glb",
+            },
+            {
+                "sku": "BAG-04",
+                "category": "accessories",
+                "asset_url": "https://cdn.raritone.dev/assets/bag.glb",
+            },
+        ],
+    }
+    response = client.post("/tryon", json=payload)
     assert response.status_code == 200
-    assert "preview_url" in response.json()
+    data = response.json()
+    assert data["render_mode"] == "2d"
+    assert data["preview_url"].endswith(".png")
+    assert len(data["fitted_items"]) == 4
+
+
+def test_try_on_3d_mode() -> None:
+    payload = {
+        "avatar_model_url": "https://cdn.raritone.dev/avatars/mock-avatar.glb",
+        "mode": "3d",
+        "items": [
+            {
+                "sku": "JACKET-05",
+                "category": "clothes",
+                "asset_url": "https://cdn.raritone.dev/assets/jacket.glb",
+            }
+        ],
+    }
+    response = client.post("/tryon", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["render_mode"] == "3d"
+    assert data["preview_url"].endswith(".glb")

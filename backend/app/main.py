@@ -1,7 +1,9 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
+from enum import Enum
 
-app = FastAPI(title="Raritone API", version="0.1.0")
+from fastapi import FastAPI
+from pydantic import BaseModel, Field, HttpUrl
+
+app = FastAPI(title="Raritone API", version="0.2.0")
 
 
 class Measurements(BaseModel):
@@ -12,7 +14,31 @@ class Measurements(BaseModel):
 
 
 class BodyScanRequest(BaseModel):
-    image_url: str | None = None
+    image_url: HttpUrl | None = None
+
+
+class ItemCategory(str, Enum):
+    clothes = "clothes"
+    shoes = "shoes"
+    jewellery = "jewellery"
+    accessories = "accessories"
+
+
+class RenderMode(str, Enum):
+    two_d = "2d"
+    three_d = "3d"
+
+
+class TryOnItem(BaseModel):
+    sku: str = Field(min_length=2)
+    category: ItemCategory
+    asset_url: HttpUrl
+
+
+class TryOnRequest(BaseModel):
+    avatar_model_url: HttpUrl
+    mode: RenderMode = RenderMode.two_d
+    items: list[TryOnItem] = Field(min_length=1, max_length=10)
 
 
 @app.get("/health")
@@ -22,8 +48,6 @@ def health_check() -> dict[str, str]:
 
 @app.post("/scan-body")
 def scan_body(payload: BodyScanRequest) -> dict:
-    # Placeholder until MediaPipe/OpenCV pipeline is integrated.
-    # Returns deterministic synthetic measurements for API development.
     _ = payload
     measurements = Measurements(
         height_cm=172.0,
@@ -36,13 +60,37 @@ def scan_body(payload: BodyScanRequest) -> dict:
 
 @app.post("/generate-avatar")
 def generate_avatar(measurements: Measurements) -> dict[str, str]:
-    # Placeholder model URI for future GLTF generation pipeline.
     _ = measurements
-    return {"avatar_model_url": "s3://raritone-dev/avatars/mock-avatar.glb"}
+    return {"avatar_model_url": "https://cdn.raritone.dev/avatars/mock-avatar.glb"}
 
 
 @app.post("/tryon")
-def try_on(avatar_model_url: str, garment_model_url: str) -> dict[str, str]:
-    # Placeholder rendered preview response.
-    _ = avatar_model_url, garment_model_url
-    return {"preview_url": "s3://raritone-dev/previews/mock-preview.png"}
+def try_on(payload: TryOnRequest) -> dict:
+    fitted_items = []
+    for item in payload.items:
+        fit_score = {
+            ItemCategory.clothes: 0.92,
+            ItemCategory.shoes: 0.89,
+            ItemCategory.jewellery: 0.95,
+            ItemCategory.accessories: 0.9,
+        }[item.category]
+        fitted_items.append(
+            {
+                "sku": item.sku,
+                "category": item.category,
+                "fit_score": fit_score,
+                "overlay_asset_url": str(item.asset_url),
+            }
+        )
+
+    if payload.mode == RenderMode.three_d:
+        preview_url = "https://cdn.raritone.dev/previews/mock-preview-3d.glb"
+    else:
+        preview_url = "https://cdn.raritone.dev/previews/mock-preview-2d.png"
+
+    return {
+        "preview_url": preview_url,
+        "render_mode": payload.mode,
+        "fitted_items": fitted_items,
+        "notes": "Prototype try-on response. Real cloth simulation/physics is pending integration.",
+    }

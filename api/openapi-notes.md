@@ -6,7 +6,14 @@ Initial endpoints implemented in FastAPI:
 - `POST /generate-avatar`
 - `POST /tryon`
 
-These are currently placeholder implementations to unblock frontend integration.
+`/tryon` supports categories:
+- `clothes`
+- `shoes`
+- `jewellery`
+- `accessories`
 
+`/tryon` supports render modes:
+- `2d` preview (`.png`)
+- `3d` preview (`.glb`)
 
-> Note: `/tryon` currently returns a mock preview URL only; it is not a real 3D fitting pipeline yet.
+> Note: current outputs are still prototype/mock outputs for integration. Real physics-based cloth simulation and accurate occlusion are pending CV + 3D pipeline integration.
