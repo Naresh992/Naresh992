@@ -30,3 +30,15 @@ def test_generate_avatar() -> None:
     response = client.post("/generate-avatar", json=payload)
     assert response.status_code == 200
     assert "avatar_model_url" in response.json()
+
+
+def test_try_on() -> None:
+    response = client.post(
+        "/tryon",
+        params={
+            "avatar_model_url": "s3://raritone-dev/avatars/mock-avatar.glb",
+            "garment_model_url": "s3://raritone-dev/garments/mock-garment.glb",
+        },
+    )
+    assert response.status_code == 200
+    assert "preview_url" in response.json()
