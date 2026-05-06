@@ -17,6 +17,12 @@ This Vite/React frontend now includes a Figma-inspired screen board based on the
 - Empty wardrobe / wishlist states
 - Wishlist product grid
 
+- Search recent/empty result states
+- Notification empty/activity/promotions states
+- Shopping bag and checkout address states
+- Filters screen
+- Try-on AI chat assistant
+
 ## Run locally
 ```bash
 npm install

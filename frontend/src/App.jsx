@@ -205,6 +205,130 @@ function AddProfileAvatar() {
   return <section className="phone add-profile"><TopBar minimal /><div className="profile-hero full">🧍</div><PrimaryButton>Add to Profile</PrimaryButton><BottomNav /></section>;
 }
 
+function SearchScreen({ empty = false }) {
+  const terms = ['Jeans', 'Casual clothes', 'Hoodie', 'Nike shoes black', 'V-neck tshirt', 'Winter clothes'];
+  return (
+    <section className="phone search-screen">
+      <TopBar minimal />
+      <div className="big-search"><span>⌕</span> Browse</div>
+      <div className="section-row"><h2>Recent Searches</h2><a>Clear All</a></div>
+      {empty ? (
+        <div className="center-empty"><div className="empty-icon">⌕</div><h2>No Results Found!</h2><p>Try a similar word or something<br />more general.</p></div>
+      ) : (
+        <div className="recent-list">{terms.map((term) => <div key={term}>{term}</div>)}</div>
+      )}
+      <BottomNav />
+    </section>
+  );
+}
+
+function NotificationsScreen({ mode = 'empty' }) {
+  const activityItems = [
+    ['🧥', 'Order #2938 Shipped', 'Your AR-verified sneaker is on the way. Track your package now.', '2h ago', 'Track Order'],
+    ['✓', 'Order Confirmed', "Thanks for shopping with us. We've received your order for the Limited Edition Jacket.", '1d ago'],
+    ['▧', 'Price Drop Alert', 'An item in your wishlist is now on sale.', '6d ago'],
+  ];
+  const promoItems = [
+    ['%', 'Flash Sale Alert', 'Get 20% off on all items you tried on virtually. Limited time offer.', '5h ago'],
+    ['⌘', 'Virtual Try-On Updated', 'New AR features are available for sunglasses. Try them on now!', '5d ago'],
+  ];
+
+  if (mode === 'empty') {
+    return (
+      <section className="phone notification-empty">
+        <TopBar minimal />
+        <div className="center-empty notification-copy"><div className="empty-icon">♢</div><h2>You haven’t gotten any<br />notifications yet!</h2><p>We’ll alert you when something<br />cool happens.</p></div>
+        <BottomNav />
+      </section>
+    );
+  }
+
+  const isPromo = mode === 'promotions';
+  const groups = isPromo
+    ? [['TODAY', [promoItems[0]]], ['LAST WEEK', [promoItems[1]]]]
+    : [['TODAY', [activityItems[0]]], ['YESTERDAY', [activityItems[1]]], ['LAST WEEK', [activityItems[2]]]];
+
+  return (
+    <section className="phone notifications-screen">
+      <span className="back">←</span>
+      <h1>Notifications</h1>
+      <div className="notification-tabs"><span className={!isPromo ? 'active' : ''}>Activity</span><span className={isPromo ? 'active' : ''}>Promotions</span></div>
+      {groups.map(([label, items]) => (
+        <div className="notification-group" key={label}>
+          <h3>{label}</h3>
+          {items.map(([icon, title, body, time, action]) => <article className="notification-card" key={title}><span className="notice-icon">{icon}</span><div><b>{title}</b><p>{body}</p><small>{time} {action && <a>{action}</a>}</small></div><i>›</i></article>)}
+        </div>
+      ))}
+      <p className="caught-up">You're all caught up!</p>
+      <BottomNav />
+    </section>
+  );
+}
+
+function BagScreen() {
+  const cart = [
+    ['◨', 'Oversized Cotton Jacket', 'Size M · Blue', '$120.00', '1'],
+    ['◪', 'Oversized Cotton Shirt', 'Size 10 · Neon Green', '$240.00', '1'],
+    ['◒', 'Silk Pattern Scarf', 'One Size · Multi', '$45.00', '2'],
+  ];
+  return (
+    <section className="phone bag-screen">
+      <span className="back">←</span>
+      <h1>Shopping Bag</h1>
+      {cart.map(([icon, name, meta, price, qty]) => <article className="cart-row" key={name}><div className="cart-art">{icon}</div><div><h3>{name}</h3><p>{meta}</p><b>{price}</b></div><span className="trash">♲</span><div className="qty">− {qty} +</div></article>)}
+      <h3>You might also like</h3>
+      <div className="mini-products"><div><div className="mini-art">▧</div><b>Cream Shirt</b><span>$35.00</span></div><div><div className="mini-art brown">▤</div><b>Brown Shirt</b><span>$35.00</span></div></div>
+      <div className="checkout-card"><div className="promo-input">◇ Promo Code <button>Apply</button></div><p>Subtotal <b>$450.00</b></p><p>Shipping <b>$15.00</b></p><h2>Total <b>$465.00</b></h2><PrimaryButton>Checkout →</PrimaryButton></div>
+      <BottomNav />
+    </section>
+  );
+}
+
+function CheckoutScreen() {
+  return (
+    <section className="phone checkout-screen">
+      <span className="back">←</span>
+      <h1>Check Out</h1>
+      <div className="section-row"><h2>Select Address</h2><a>Manage</a></div>
+      <div className="address-card selected"><span className="radio">●</span><div><b className="tag">HOME</b><h3>Jane Doe</h3><p>123 Fashion Ave, Apt 4B<br />New York, NY 10001<br /><br />(555) 123-4567</p></div><i>✎</i></div>
+      <div className="address-card"><span className="radio">○</span><div><b className="tag">WORK</b><h3>Jane Doe</h3><p>456 Studio Loft<br />Brooklyn, NY 11211<br /><br />(555) 987-6543</p></div></div>
+      <button className="add-address">⊕ Add New Address</button>
+      <PrimaryButton>Continue to payment →</PrimaryButton>
+      <BottomNav />
+    </section>
+  );
+}
+
+function FiltersScreen() {
+  const chips = {
+    Category: ['Dresses', 'Outwear', 'Bags', 'Shoes', 'Eyewear', 'Accessories'],
+    Material: ['⚗ Synthetic', '♨ Bio-Cotton', '♻ Recycled Poly', '▣ Smart Fabric'],
+    'Price Range': ['Under $500', '$500-$1000', '$1000-$2000', 'Over $2000'],
+    Brands: ['Gucci', 'Zara', 'Nike', 'Prada'],
+  };
+  return (
+    <section className="phone filters-screen">
+      <span className="back">←</span><h1>Filters</h1>
+      {Object.entries(chips).map(([title, items]) => <div className="filter-section" key={title}><div className="filter-heading"><b>{title}</b>{title === 'Category' && <small>2 Selected</small>}</div><div className="chip-grid">{items.map((item, index) => <button className={index === 0 || item.includes('Recycled') || item.includes('$1000') || item === 'Nike' ? 'selected' : ''} key={item}>{item}</button>)}</div></div>)}
+      <div className="filter-section"><b>Color</b><div className="color-row">{['#ff5862', '#ffc928', '#43c329', '#f51f16', '#000', '#2461e8', '#2461e8', '#fff'].map((color, index) => <span style={{ background: color }} key={`${color}-${index}`} />)}</div></div>
+      <div className="filter-section"><b>Size</b><div className="size-row">{['XS','S','M','L','XL','XXL','36','38','40','42','44'].map((size) => <span className={size === 'XL' ? 'selected-outline' : ''} key={size}>{size}</span>)}</div></div>
+      <div className="filter-section"><b>Sort by</b><ul className="sort-list"><li>What’s New</li><li>Customer Rating</li><li>Price Low to High</li><li>Price High to Low</li><li>Popularity</li><li>Discount</li></ul></div>
+      <PrimaryButton>Reset Filter’s →</PrimaryButton>
+    </section>
+  );
+}
+
+function ChatAssistantScreen() {
+  return (
+    <section className="phone chat-screen">
+      <span className="back">←</span><h1>Try On AI Chat Assistant</h1>
+      <div className="chat-thread"><div className="bot-row"><span className="avatar-dot" /><i /></div><div className="user-bubble" /><div className="bot-row"><span className="avatar-dot" /><i /></div><div className="user-bubble" /></div>
+      <div className="quick-actions"><button>▣ Track Order</button><button>▤ Returns</button><button>▥ Size Guide</button></div>
+      <div className="message-box"><span>☻</span><p>Type a message</p><b>⌕</b><b>▷</b></div>
+    </section>
+  );
+}
+
 export function App() {
   const screens = [
     ['Onboarding', <OnboardingScreen />],
@@ -225,6 +349,15 @@ export function App() {
     ['Add wardrobe sheet', <TryOnSheet wardrobeMode />],
     ['Wishlist', <WishlistScreen />],
     ['Empty wishlist', <EmptyState type="wishlist" />],
+    ['Search empty', <SearchScreen empty />],
+    ['Recent searches', <SearchScreen />],
+    ['Notifications empty', <NotificationsScreen />],
+    ['Notifications activity', <NotificationsScreen mode="activity" />],
+    ['Notifications promos', <NotificationsScreen mode="promotions" />],
+    ['Shopping bag', <BagScreen />],
+    ['Checkout address', <CheckoutScreen />],
+    ['Filters', <FiltersScreen />],
+    ['AI chat assistant', <ChatAssistantScreen />],
   ];
 
   return (
