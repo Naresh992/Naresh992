@@ -2,6 +2,8 @@
 
 This Vite/React frontend now includes a Figma-inspired screen board based on the provided screenshots.
 
+`src/figmaScreens.js` is the screenshot coverage manifest used by the frontend header checklist.
+
 ## Implemented visual flows
 - Onboarding / curated fashion intro
 - Login by mobile number

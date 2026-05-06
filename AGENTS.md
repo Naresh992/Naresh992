@@ -13,6 +13,7 @@ Primary flow:
 
 ## Architecture rules
 - Repository top-level folders:
+  - `frontend/` React/Vite web preview
   - `mobile/` React Native (Expo)
   - `backend/` FastAPI services
   - `ai-models/` CV and ML code

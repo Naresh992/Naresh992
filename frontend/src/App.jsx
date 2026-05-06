@@ -1,4 +1,5 @@
 import React from 'react';
+import { figmaScreens } from './figmaScreens';
 
 const products = [
   { name: 'Brown Jacket', tone: 'brown' },
@@ -365,6 +366,9 @@ export function App() {
       <header className="board-header">
         <p>Raritone Frontend</p>
         <h1>Figma-inspired shopping + virtual try-on screens</h1>
+        <div className="screenshot-checklist" aria-label="Implemented Figma screenshots">
+          {figmaScreens.map((screen) => <span key={screen.id}><b>{screen.flow}</b>{screen.title}</span>)}
+        </div>
       </header>
       <div className="screen-grid">
         {screens.map(([title, screen]) => <div className="screen-frame" key={title}><h2>{title}</h2>{screen}</div>)}
