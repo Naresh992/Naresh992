@@ -1,44 +1,112 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { Input } from '../components/Input';
-import { colors, spacing, typography } from '../styles/theme';
+import { colors, radius, spacing, typography } from '../styles/theme';
 
 type Props = { onDone: () => void; onBack: () => void };
 
 export function AuthScreen({ onDone, onBack }: Props) {
   const [codeSent, setCodeSent] = useState(false);
+
   return (
     <View style={styles.screen}>
       <Header showBack onBack={onBack} />
       <View style={styles.content}>
-        <Text style={styles.title}>{codeSent ? 'Enter 4 Digit Code' : 'Login to your account'}</Text>
-        <Text style={styles.subtitle}>{codeSent ? 'We sent a verification code to +91 999-000-1234' : 'It’s great to see you again'}</Text>
+        <View style={styles.copy}>
+          <Text style={styles.kicker}>SECURE SIGN IN</Text>
+          <Text style={styles.title}>{codeSent ? 'Verify your number' : 'Login to your account'}</Text>
+          <Text style={styles.subtitle}>{codeSent ? 'Enter the code sent to your mobile number.' : 'Authenticate before scanning, trying on, or purchasing.'}</Text>
+        </View>
         {codeSent ? (
-          <View style={styles.otpRow}>{['1', '4', '2', '0'].map((digit) => <View style={styles.otpBox} key={digit}><Text style={styles.otpText}>{digit}</Text></View>)}</View>
+          <View style={styles.otpRow}>
+            {['', '', '', ''].map((_, index) => <View key={index} style={styles.otpBox}><Text style={styles.otpText}>{index === 0 ? '4' : ''}</Text></View>)}
+          </View>
         ) : (
-          <Input label="Mobile Number" value="+ 91 999 - 000 - 1234" keyboardType="phone-pad" />
+          <Input label="Mobile number" value="+1 555 018 2048" keyboardType="phone-pad" />
         )}
         <Button title={codeSent ? 'Continue' : 'Send Code'} onPress={codeSent ? onDone : () => setCodeSent(true)} />
-        <View style={styles.divider}><View /><Text>Or</Text><View /></View>
-        <Button title="Login with Google" variant="secondary" />
-        <Button title="Login with Apple" variant="secondary" />
-        <Text style={styles.join}>Don’t have an account? <Text style={styles.link}>Join</Text></Text>
+        <View style={styles.divider}><View style={styles.rule} /><Text style={styles.dividerText}>OR</Text><View style={styles.rule} /></View>
+        <Button title="Continue with Google" variant="secondary" />
+        <Button title="Continue with Apple" variant="secondary" />
+        <TouchableOpacity activeOpacity={0.8}>
+          <Text style={styles.join}>Don’t have an account? <Text style={styles.link}>Join Raritone</Text></Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, padding: spacing.xl, justifyContent: 'center', gap: spacing.lg },
-  title: { ...typography.hero, color: colors.text },
-  subtitle: { ...typography.body, color: colors.muted, marginBottom: spacing.xl },
-  otpRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl },
-  otpBox: { flex: 1, height: 64, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  otpText: { ...typography.h1, color: colors.text },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.md },
-  join: { ...typography.body, color: colors.muted, textAlign: 'center', marginTop: spacing.md },
-  link: { color: colors.text, textDecorationLine: 'underline' },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+    padding: spacing.xl,
+    justifyContent: 'center',
+    gap: spacing.lg,
+  },
+  copy: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  kicker: {
+    ...typography.micro,
+    color: colors.muted,
+  },
+  title: {
+    ...typography.hero,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.muted,
+  },
+  otpRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  otpBox: {
+    flex: 1,
+    height: 64,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpText: {
+    ...typography.h1,
+    color: colors.text,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.sm,
+  },
+  rule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    ...typography.micro,
+    color: colors.subtle,
+  },
+  join: {
+    ...typography.body,
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  link: {
+    color: colors.text,
+    fontWeight: '800',
+  },
 });

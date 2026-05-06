@@ -1,45 +1,130 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import { Header } from '../components/Header';
 import { ProductCard } from '../components/ProductCard';
-import { products, Product } from '../data/products';
+import { Product, products } from '../data/products';
 import { colors, radius, spacing, typography } from '../styles/theme';
 
-type Props = { onProduct: (product: Product) => void; onTryOn: (product: Product) => void; onProfile: () => void };
+type Props = {
+  onProfile: () => void;
+  onProduct: (product: Product) => void;
+  onTryOn: (product: Product) => void;
+};
 
-export function HomeScreen({ onProduct, onTryOn, onProfile }: Props) {
+export function HomeScreen({ onProfile, onProduct, onTryOn }: Props) {
   return (
     <View style={styles.screen}>
-      <Header onProfile={onProfile} />
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={(
-          <>
-            <View style={styles.search}><Text style={styles.searchText}>Search clothes, shoes, jewellery</Text></View>
-            <View style={styles.hero}><Text style={styles.heroEyebrow}>SUMMER 2026</Text><Text style={styles.heroTitle}>Golden Hour{`\n`}Collection</Text><Text style={styles.heroCta}>SHOP THE EDIT →</Text></View>
-            <View style={styles.categories}><Text style={styles.activeCategory}>All</Text><Text>Men</Text><Text>Women</Text><Text>Trending</Text></View>
-          </>
-        )}
-        renderItem={({ item }) => <ProductCard product={item} onPress={() => onProduct(item)} onTryOn={() => onTryOn(item)} />}
-      />
+      <Header title="RARITONE" subtitle="Virtual try-on" onProfile={onProfile} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.kicker}>NEW DROP</Text>
+            <Text style={styles.title}>Try fits built for your avatar.</Text>
+            <Text style={styles.subtitle}>Browse curated pieces and preview them non-destructively on your measured body profile.</Text>
+          </View>
+          <View style={styles.heroArt}>
+            <View style={styles.heroCircle} />
+            <View style={styles.heroTorso} />
+          </View>
+        </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recommended</Text>
+          <Text style={styles.sectionAction}>View all</Text>
+        </View>
+        <View style={styles.grid}>
+          {products.map((product) => (
+            <View key={product.id} style={styles.gridItem}>
+              <ProductCard product={product} onPress={() => onProduct(product)} onTryOn={() => onTryOn(product)} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
-  row: { gap: spacing.lg, marginBottom: spacing.xl },
-  search: { height: 48, borderRadius: radius.pill, backgroundColor: colors.surface, justifyContent: 'center', paddingHorizontal: spacing.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
-  searchText: { ...typography.body, color: colors.muted },
-  hero: { height: 320, borderRadius: radius.xl, backgroundColor: colors.elevated, padding: spacing.xl, justifyContent: 'flex-end', borderWidth: 1, borderColor: colors.border, marginBottom: spacing.lg },
-  heroEyebrow: { ...typography.caption, color: colors.muted, letterSpacing: 2 },
-  heroTitle: { ...typography.hero, color: colors.text, marginVertical: spacing.sm },
-  heroCta: { ...typography.caption, color: colors.text, letterSpacing: 1.4 },
-  categories: { flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.lg },
-  activeCategory: { color: colors.text },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.xl,
+  },
+  hero: {
+    minHeight: 250,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    overflow: 'hidden',
+  },
+  heroCopy: {
+    maxWidth: '70%',
+    gap: spacing.md,
+    zIndex: 1,
+  },
+  kicker: {
+    ...typography.micro,
+    color: colors.muted,
+  },
+  title: {
+    ...typography.h1,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.muted,
+  },
+  heroArt: {
+    position: 'absolute',
+    right: -10,
+    bottom: -10,
+    width: 150,
+    height: 220,
+    alignItems: 'center',
+  },
+  heroCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: colors.text,
+    marginBottom: spacing.sm,
+  },
+  heroTorso: {
+    width: 110,
+    height: 150,
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
+    borderWidth: 2,
+    borderColor: colors.text,
+    backgroundColor: colors.card,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  sectionAction: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -spacing.sm,
+    rowGap: spacing.xl,
+  },
+  gridItem: {
+    width: '50%',
+    paddingHorizontal: spacing.sm,
+  },
 });

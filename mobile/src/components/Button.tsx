@@ -12,31 +12,41 @@ type Props = {
 };
 
 export function Button({ title, onPress, variant = 'primary', loading = false, style }: Props) {
+  const textColor = variant === 'primary' ? colors.inverse : colors.text;
+
   return (
     <TouchableOpacity
       activeOpacity={0.82}
-      onPress={onPress}
       disabled={loading}
+      onPress={onPress}
       style={[styles.base, styles[variant], style]}
     >
-      {loading ? <ActivityIndicator color={variant === 'primary' ? colors.inverse : colors.text} /> : <Text style={[styles.text, styles[`${variant}Text`]]}>{title}</Text>}
+      {loading ? <ActivityIndicator color={textColor} /> : <Text style={[styles.text, { color: textColor }]}>{title}</Text>}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
-  primary: { backgroundColor: colors.accent },
-  secondary: { backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border },
-  ghost: { backgroundColor: 'transparent' },
-  text: { ...typography.button },
-  primaryText: { color: colors.inverse },
-  secondaryText: { color: colors.text },
-  ghostText: { color: colors.text },
+  primary: {
+    backgroundColor: colors.accent,
+  },
+  secondary: {
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ghost: {
+    minHeight: 44,
+    backgroundColor: 'transparent',
+  },
+  text: {
+    ...typography.button,
+  },
 });

@@ -7,7 +7,7 @@ Figma reference:
 - `App.tsx` boots the mobile app and renders the React Navigation stack/tab navigator.
 - `src/navigation/AppNavigator.tsx` uses React Navigation stack + bottom tabs to connect Splash → Onboarding → Auth → Home → Product → BodyScan → Processing → Avatar/Try-On/Profile.
 - `src/components/*` contains reusable Button, Input, ProductCard, and Header components.
-- `src/screens/*` contains all required screens from the screenshots rebuilt as React Native UI, not images.
+- `src/screens/*` contains all required screens from visual references rebuilt as React Native UI, not images.
 - `src/styles/theme.ts` contains the strict black/white premium theme tokens.
 
 ## Run (Expo)

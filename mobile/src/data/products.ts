@@ -3,7 +3,9 @@ export type Product = {
   title: string;
   category: string;
   price: number;
-  imageUrl: string;
+  fit: string;
+  color: string;
+  accent: string;
 };
 
 export const products: Product[] = [
@@ -12,27 +14,35 @@ export const products: Product[] = [
     title: 'Brown Jacket',
     category: 'Outerwear Men’s',
     price: 120,
-    imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=900&q=80',
+    fit: 'Relaxed fit',
+    color: '#7A5136',
+    accent: '#B58B67',
   },
   {
     id: 'black-jacket',
     title: 'Black Jacket',
     category: 'Outerwear Men’s',
     price: 120,
-    imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80',
+    fit: 'Structured fit',
+    color: '#202020',
+    accent: '#6E6E6E',
   },
   {
     id: 'cream-shirt',
     title: 'Cream Shirt',
     category: 'Essentials',
     price: 85,
-    imageUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80',
+    fit: 'True to size',
+    color: '#D8D0C4',
+    accent: '#EFE7DA',
   },
   {
-    id: 'black-trouser',
+    id: 'wide-trouser',
     title: 'Wide Trouser',
     category: 'Tailored Fit',
     price: 95,
-    imageUrl: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80',
+    fit: 'Wide leg',
+    color: '#2B2A29',
+    accent: '#9B9185',
   },
 ];

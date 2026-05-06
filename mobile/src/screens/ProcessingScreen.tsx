@@ -1,31 +1,69 @@
-import React, { useEffect } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '../styles/theme';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Button } from '../components/Button';
+import { colors, radius, spacing, typography } from '../styles/theme';
 
 type Props = { onComplete: () => void };
 
 export function ProcessingScreen({ onComplete }: Props) {
-  const progress = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(progress, { toValue: 1, duration: 1500, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => onComplete());
-  }, [onComplete, progress]);
-
-  const width = progress.interpolate({ inputRange: [0, 1], outputRange: ['8%', '100%'] });
-
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Generating your avatar</Text>
-      <Text style={styles.subtitle}>Building body measurements, avatar proportions, and try-on anchors.</Text>
-      <View style={styles.progressTrack}><Animated.View style={[styles.progressFill, { width }]} /></View>
+      <View style={styles.loader}>
+        <View style={styles.ring}>
+          <Text style={styles.percent}>86%</Text>
+        </View>
+      </View>
+      <View style={styles.copy}>
+        <Text style={styles.kicker}>GENERATING AVATAR</Text>
+        <Text style={styles.title}>Building your measurement snapshot.</Text>
+        <Text style={styles.subtitle}>We are creating a reproducible avatar profile for try-on previews.</Text>
+      </View>
+      <Button title="Finish Processing" onPress={onComplete} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background, padding: spacing.xl, justifyContent: 'center', gap: spacing.lg },
-  title: { ...typography.h1, color: colors.text, textAlign: 'center' },
-  subtitle: { ...typography.body, color: colors.muted, textAlign: 'center' },
-  progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.surface, overflow: 'hidden' },
-  progressFill: { height: 8, borderRadius: 4, backgroundColor: colors.text },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing.xl,
+    justifyContent: 'space-between',
+  },
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring: {
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    borderWidth: 14,
+    borderColor: colors.text,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  percent: {
+    ...typography.display,
+    color: colors.text,
+  },
+  copy: {
+    gap: spacing.md,
+    marginBottom: spacing.xxl,
+  },
+  kicker: {
+    ...typography.micro,
+    color: colors.muted,
+  },
+  title: {
+    ...typography.hero,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.muted,
+  },
 });

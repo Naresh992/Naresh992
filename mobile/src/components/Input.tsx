@@ -13,6 +13,7 @@ export function Input({ label, ...props }: Props) {
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.subtle}
+        selectionColor={colors.text}
         style={styles.input}
         {...props}
       />
@@ -21,16 +22,22 @@ export function Input({ label, ...props }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { gap: spacing.sm },
-  label: { ...typography.caption, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+  wrapper: {
+    gap: spacing.sm,
+  },
+  label: {
+    ...typography.micro,
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
   input: {
-    minHeight: 54,
+    minHeight: 58,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.text,
     paddingHorizontal: spacing.lg,
-    ...typography.body,
+    ...typography.bodyStrong,
   },
 });
