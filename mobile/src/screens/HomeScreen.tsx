@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Header } from '../components/Header';
 import { ProductCard } from '../components/ProductCard';
 import { Product, categories, products } from '../data/products';
-import { colors, radius, spacing, typography } from '../styles/theme';
+import { colors, radius, shadows, spacing, typography } from '../styles/theme';
 
 type Props = {
   onProfile: () => void;
@@ -14,7 +14,11 @@ type Props = {
 
 export function HomeScreen({ onProfile, onProduct, onTryOn }: Props) {
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const visibleProducts = selectedCategory === 'All' ? products : products.filter((product) => product.category === selectedCategory);
+  const visibleProducts = useMemo(
+    () => selectedCategory === 'All' ? products : products.filter((product) => product.category === selectedCategory),
+    [selectedCategory],
+  );
+  const trending = products.slice(0, 3);
 
   return (
     <View style={styles.screen}>
@@ -26,24 +30,48 @@ export function HomeScreen({ onProfile, onProduct, onTryOn }: Props) {
         ListHeaderComponent={
           <View style={styles.headerContent}>
             <View style={styles.heroCard}>
-              <Text style={styles.eyebrow}>NEW ARRIVALS</Text>
-              <Text style={styles.title}>Find your next fit.</Text>
-              <Text style={styles.subtitle}>Try products on your avatar before checkout.</Text>
+              <View style={styles.heroGlow} />
+              <Text style={styles.eyebrow}>SPRING EDIT</Text>
+              <Text style={styles.heroTitle}>Precision fit, styled for you.</Text>
+              <Text style={styles.heroSubtitle}>Scan once and preview every look on your Raritone avatar.</Text>
             </View>
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-              {categories.map((category) => (
-                <Text
-                  key={category}
-                  onPress={() => setSelectedCategory(category)}
-                  style={[styles.categoryPill, selectedCategory === category && styles.categoryPillActive]}
-                >
-                  {category}
-                </Text>
-              ))}
+              {categories.map((category) => {
+                const isActive = selectedCategory === category;
+                return (
+                  <Pressable
+                    key={category}
+                    onPress={() => setSelectedCategory(category)}
+                    style={({ pressed }) => [styles.categoryPill, isActive && styles.categoryPillActive, pressed && styles.pressed]}
+                  >
+                    <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>{category}</Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Products</Text>
-              <Text style={styles.sectionCount}>{visibleProducts.length} items</Text>
+
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Trending</Text>
+                <Text style={styles.sectionAction}>This week</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
+                {trending.map((item) => (
+                  <Pressable key={item.id} onPress={() => onProduct(item)} style={({ pressed }) => [styles.trendingCard, pressed && styles.pressed]}>
+                    <View style={[styles.trendingSwatch, { backgroundColor: item.color }]} />
+                    <View style={styles.trendingCopy}>
+                      <Text numberOfLines={1} style={styles.trendingTitle}>{item.title}</Text>
+                      <Text style={styles.trendingMeta}>${item.price}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recommended for you</Text>
+              <Text style={styles.sectionAction}>{visibleProducts.length} items</Text>
             </View>
           </View>
         }
@@ -66,57 +94,79 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   headerContent: {
-    gap: spacing.lg,
-    marginBottom: spacing.lg,
+    gap: spacing.xxl,
+    marginBottom: spacing.xl,
   },
   heroCard: {
-    minHeight: 180,
+    minHeight: 220,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.lg,
+    padding: spacing.xl,
     justifyContent: 'flex-end',
     gap: spacing.sm,
+    overflow: 'hidden',
+    ...shadows.soft,
+  },
+  heroGlow: {
+    position: 'absolute',
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    right: -54,
+    top: -42,
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
   eyebrow: {
-    ...typography.caption,
+    ...typography.micro,
     color: colors.muted,
-    letterSpacing: 1.2,
   },
-  title: {
+  heroTitle: {
     ...typography.title,
     color: colors.text,
+    maxWidth: 290,
   },
-  subtitle: {
+  heroSubtitle: {
     ...typography.body,
     color: colors.muted,
+    maxWidth: 280,
   },
   categoryRow: {
     gap: spacing.sm,
-    paddingRight: spacing.lg,
+    paddingRight: spacing.xl,
   },
   categoryPill: {
-    ...typography.body,
-    color: colors.text,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    overflow: 'hidden',
+    paddingVertical: spacing.md,
   },
   categoryPillActive: {
-    color: colors.inverse,
     backgroundColor: colors.text,
     borderColor: colors.text,
   },
-  sectionRow: {
+  categoryText: {
+    ...typography.bodyMedium,
+    color: colors.text,
+  },
+  categoryTextActive: {
+    color: colors.inverse,
+  },
+  pressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.98 }],
+  },
+  sectionBlock: {
+    gap: spacing.md,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -125,13 +175,46 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.text,
   },
-  sectionCount: {
+  sectionAction: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  trendingRow: {
+    gap: spacing.md,
+    paddingRight: spacing.xl,
+  },
+  trendingCard: {
+    width: 170,
+    minHeight: 82,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  trendingSwatch: {
+    width: 46,
+    height: 58,
+    borderRadius: radius.md,
+  },
+  trendingCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  trendingTitle: {
+    ...typography.caption,
+    color: colors.text,
+  },
+  trendingMeta: {
     ...typography.caption,
     color: colors.muted,
   },
   columnWrapper: {
     gap: spacing.lg,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl,
   },
   gridItem: {
     flex: 1,

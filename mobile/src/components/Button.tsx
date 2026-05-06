@@ -12,7 +12,15 @@ type Props = {
 
 export function Button({ title, onPress, variant = 'primary', style }: Props) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.base, styles[variant], pressed && styles.pressed, style]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.base,
+        styles[variant],
+        pressed && styles.pressed,
+        style,
+      ]}
+    >
       <Text style={[styles.text, variant === 'primary' ? styles.primaryText : styles.lightText]}>{title}</Text>
     </Pressable>
   );
@@ -20,25 +28,27 @@ export function Button({ title, onPress, variant = 'primary', style }: Props) {
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 54,
-    borderRadius: radius.md,
+    minHeight: 56,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   primary: {
     backgroundColor: colors.text,
   },
   secondary: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   ghost: {
+    minHeight: 44,
     backgroundColor: 'transparent',
   },
   pressed: {
-    opacity: 0.75,
+    opacity: 0.78,
+    transform: [{ scale: 0.98 }],
   },
   text: {
     ...typography.button,

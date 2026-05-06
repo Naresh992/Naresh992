@@ -15,7 +15,7 @@ export function Header({ title = 'RARITONE', showBack = false, onBack, onProfile
     <View style={styles.header}>
       <View style={styles.side}>
         {showBack ? (
-          <Pressable onPress={onBack} style={styles.iconButton}>
+          <Pressable onPress={onBack} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
         ) : (
@@ -25,7 +25,7 @@ export function Header({ title = 'RARITONE', showBack = false, onBack, onProfile
       <Text style={styles.logo}>{title}</Text>
       <View style={styles.sideRight}>
         {onProfile ? (
-          <Pressable onPress={onProfile} style={styles.profileButton}>
+          <Pressable onPress={onProfile} style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
             <Text style={styles.profileText}>R</Text>
           </Pressable>
         ) : null}
@@ -36,10 +36,10 @@ export function Header({ title = 'RARITONE', showBack = false, onBack, onProfile
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     justifyContent: 'space-between',
     backgroundColor: colors.background,
   },
@@ -52,32 +52,35 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   logoMark: {
-    width: 14,
-    height: 14,
+    width: 16,
+    height: 16,
     borderRadius: radius.pill,
     backgroundColor: colors.text,
   },
   logo: {
     ...typography.caption,
     color: colors.text,
-    letterSpacing: 2.4,
+    letterSpacing: 3,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   backIcon: {
     color: colors.text,
     fontSize: 34,
     lineHeight: 36,
+    marginTop: -2,
   },
   profileButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
     backgroundColor: colors.text,
     alignItems: 'center',
@@ -86,5 +89,9 @@ const styles = StyleSheet.create({
   profileText: {
     ...typography.caption,
     color: colors.inverse,
+  },
+  pressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.96 }],
   },
 });

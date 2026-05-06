@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { Product, products } from '../data/products';
-import { colors, radius, spacing, typography } from '../styles/theme';
+import { colors, radius, shadows, spacing, typography } from '../styles/theme';
 
 type Props = { product: Product; onBack: () => void };
 
@@ -12,36 +12,54 @@ export function TryOnScreen({ product }: Props) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>TRY-ON</Text>
-        <Text style={styles.headerMeta}>{selectedOutfit.title}</Text>
-      </View>
-      <View style={styles.avatarBox}>
-        <View style={styles.avatarHead} />
-        <View style={[styles.outfitBody, { backgroundColor: selectedOutfit.color, borderColor: selectedOutfit.accent }]}>
-          <View style={[styles.outfitLine, { backgroundColor: selectedOutfit.accent }]} />
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.eyebrow}>LIVE FIT PREVIEW</Text>
+          <Text style={styles.title}>Virtual Try-On</Text>
         </View>
-        <View style={styles.legsRow}>
-          <View style={styles.leg} />
-          <View style={styles.leg} />
-        </View>
-        <View style={styles.fitBadge}>
-          <Text style={styles.fitValue}>98%</Text>
-          <Text style={styles.fitText}>Fit</Text>
+        <View style={styles.fitPill}>
+          <Text style={styles.fitPillText}>98%</Text>
         </View>
       </View>
+
+      <View style={styles.avatarFrame}>
+        <View style={styles.frameGlow} />
+        <View style={styles.avatarBox}>
+          <View style={styles.avatarHead} />
+          <View style={[styles.outfitBody, { backgroundColor: selectedOutfit.color, borderColor: selectedOutfit.accent }]}>
+            <View style={[styles.outfitLine, { backgroundColor: selectedOutfit.accent }]} />
+          </View>
+          <View style={styles.legsRow}>
+            <View style={styles.leg} />
+            <View style={styles.leg} />
+          </View>
+        </View>
+        <View style={styles.lookMetaCard}>
+          <Text style={styles.lookTitle}>{selectedOutfit.title}</Text>
+          <Text style={styles.lookSubtitle}>{selectedOutfit.category} · Best size M</Text>
+        </View>
+      </View>
+
       <View style={styles.bottomPanel}>
-        <Text style={styles.panelTitle}>Outfits</Text>
+        <View style={styles.panelHeader}>
+          <Text style={styles.panelTitle}>Outfit rail</Text>
+          <Text style={styles.panelAction}>Swipe</Text>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderContent}>
-          {products.map((item) => (
-            <Text
-              key={item.id}
-              onPress={() => setSelectedOutfit(item)}
-              style={[styles.outfitChip, selectedOutfit.id === item.id && styles.outfitChipActive]}
-            >
-              {item.title}
-            </Text>
-          ))}
+          {products.map((item) => {
+            const isSelected = selectedOutfit.id === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setSelectedOutfit(item)}
+                style={({ pressed }) => [styles.outfitCard, isSelected && styles.outfitCardActive, pressed && styles.pressed]}
+              >
+                <View style={[styles.outfitSwatch, { backgroundColor: item.color }]} />
+                <Text numberOfLines={1} style={[styles.outfitName, isSelected && styles.outfitNameActive]}>{item.title}</Text>
+                <Text style={[styles.outfitPrice, isSelected && styles.outfitPriceActive]}>${item.price}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
         <View style={styles.buttonRow}>
           <Button title="Save" variant="secondary" style={styles.actionButton} />
@@ -56,31 +74,61 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
   },
-  headerRow: {
-    minHeight: 64,
-    justifyContent: 'center',
-    gap: spacing.xs,
+  topBar: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerTitle: {
-    ...typography.caption,
+  eyebrow: {
+    ...typography.micro,
     color: colors.muted,
-    letterSpacing: 2,
+    marginBottom: spacing.xs,
   },
-  headerMeta: {
-    ...typography.heading,
+  title: {
+    ...typography.title,
     color: colors.text,
   },
-  avatarBox: {
+  fitPill: {
+    minWidth: 58,
+    height: 42,
+    borderRadius: radius.pill,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  fitPillText: {
+    ...typography.caption,
+    color: colors.inverse,
+  },
+  avatarFrame: {
     flex: 1,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.soft,
+  },
+  frameGlow: {
+    position: 'absolute',
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    top: '12%',
+  },
+  avatarBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ scale: 1.03 }],
   },
   avatarHead: {
     width: 66,
@@ -90,49 +138,52 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   outfitBody: {
-    width: 154,
-    height: 210,
+    width: 160,
+    height: 218,
     borderRadius: radius.lg,
-    borderTopLeftRadius: 76,
-    borderTopRightRadius: 76,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
     borderWidth: 3,
     alignItems: 'center',
   },
   outfitLine: {
     width: 4,
-    height: 170,
+    height: 178,
     borderRadius: radius.pill,
     marginTop: spacing.lg,
   },
   legsRow: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    gap: spacing.xl,
     marginTop: spacing.sm,
   },
   leg: {
-    width: 44,
-    height: 112,
+    width: 46,
+    height: 116,
     borderRadius: radius.md,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  fitBadge: {
+  lookMetaCard: {
     position: 'absolute',
-    top: spacing.lg,
-    right: spacing.lg,
-    borderRadius: radius.md,
-    backgroundColor: colors.text,
-    padding: spacing.md,
-    alignItems: 'center',
+    left: spacing.xl,
+    right: spacing.xl,
+    bottom: spacing.xl,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
   },
-  fitValue: {
-    ...typography.heading,
-    color: colors.inverse,
+  lookTitle: {
+    ...typography.subheading,
+    color: colors.text,
   },
-  fitText: {
+  lookSubtitle: {
     ...typography.caption,
-    color: colors.inverse,
+    color: colors.muted,
+    marginTop: spacing.xs,
   },
   bottomPanel: {
     borderRadius: radius.lg,
@@ -142,29 +193,57 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   panelTitle: {
     ...typography.heading,
     color: colors.text,
   },
-  sliderContent: {
-    gap: spacing.sm,
-    paddingRight: spacing.lg,
+  panelAction: {
+    ...typography.caption,
+    color: colors.muted,
   },
-  outfitChip: {
-    ...typography.body,
-    color: colors.text,
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
+  sliderContent: {
+    gap: spacing.md,
+    paddingRight: spacing.xl,
+  },
+  outfitCard: {
+    width: 132,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    overflow: 'hidden',
+    backgroundColor: colors.card,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
-  outfitChipActive: {
-    color: colors.inverse,
+  outfitCardActive: {
     backgroundColor: colors.text,
     borderColor: colors.text,
+  },
+  outfitSwatch: {
+    height: 58,
+    borderRadius: radius.md,
+  },
+  outfitName: {
+    ...typography.caption,
+    color: colors.text,
+  },
+  outfitNameActive: {
+    color: colors.inverse,
+  },
+  outfitPrice: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  outfitPriceActive: {
+    color: colors.inverse,
+  },
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.97 }],
   },
   buttonRow: {
     flexDirection: 'row',
@@ -172,5 +251,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+    borderRadius: radius.lg,
   },
 });
