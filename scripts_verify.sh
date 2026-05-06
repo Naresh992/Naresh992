@@ -31,8 +31,9 @@ echo "[4/6] Frontend server smoke check"
   grep -q "Raritone Frontend" /tmp/raritone-frontend-index.html
 )
 
-echo "[5/6] Mobile package.json parse"
+echo "[5/6] Mobile package.json parse + structure check"
 node -e "const fs=require('fs');JSON.parse(fs.readFileSync('mobile/package.json','utf8'));console.log('mobile package.json ok')"
+npm --prefix mobile run check
 
 echo "[6/6] Mobile Expo availability check"
 if [ -x mobile/node_modules/.bin/expo ]; then
