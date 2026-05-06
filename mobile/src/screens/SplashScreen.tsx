@@ -9,19 +9,17 @@ type Props = { onContinue: () => void };
 export function SplashScreen({ onContinue }: Props) {
   return (
     <View style={styles.screen}>
-      <View style={styles.markWrap}>
-        <View style={styles.outerRing}>
-          <View style={styles.innerRing}>
-            <Text style={styles.mark}>R</Text>
-          </View>
+      <View style={styles.brandWrap}>
+        <View style={styles.logoCircle}>
+          <Text style={styles.logoText}>R</Text>
         </View>
       </View>
       <View style={styles.copy}>
-        <Text style={styles.kicker}>AI VIRTUAL TRY-ON</Text>
+        <Text style={styles.eyebrow}>VIRTUAL TRY-ON</Text>
         <Text style={styles.title}>RARITONE</Text>
-        <Text style={styles.subtitle}>Scan once. Try every product with confidence.</Text>
+        <Text style={styles.subtitle}>Shop with an avatar that understands your fit.</Text>
       </View>
-      <Button title="Start" onPress={onContinue} style={styles.button} />
+      <Button title="Start" onPress={onContinue} />
     </View>
   );
 }
@@ -29,56 +27,43 @@ export function SplashScreen({ onContinue }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    padding: spacing.lg,
     backgroundColor: colors.background,
-    padding: spacing.xl,
     justifyContent: 'space-between',
   },
-  markWrap: {
+  brandWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outerRing: {
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  innerRing: {
-    width: 142,
-    height: 142,
-    borderRadius: 71,
+  logoCircle: {
+    width: 148,
+    height: 148,
+    borderRadius: radius.pill,
     backgroundColor: colors.text,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mark: {
+  logoText: {
     ...typography.display,
     color: colors.inverse,
   },
   copy: {
-    gap: spacing.md,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
   },
-  kicker: {
-    ...typography.micro,
+  eyebrow: {
+    ...typography.caption,
     color: colors.muted,
+    letterSpacing: 1.5,
   },
   title: {
     ...typography.display,
     color: colors.text,
-    letterSpacing: 5,
+    letterSpacing: 4,
   },
   subtitle: {
     ...typography.body,
     color: colors.muted,
-    maxWidth: 270,
-  },
-  button: {
-    marginBottom: spacing.lg,
-    borderRadius: radius.pill,
   },
 });

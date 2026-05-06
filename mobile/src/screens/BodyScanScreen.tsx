@@ -12,39 +12,35 @@ export function BodyScanScreen({ onScan, onBack }: Props) {
     <View style={styles.screen}>
       <Header title="BODY SCAN" showBack onBack={onBack} />
       <View style={styles.content}>
-        <View style={styles.scanStage}>
+        <View style={styles.cameraBox}>
           <View style={styles.cornerTopLeft} />
           <View style={styles.cornerTopRight} />
           <View style={styles.cornerBottomLeft} />
           <View style={styles.cornerBottomRight} />
-          <View style={styles.personHead} />
-          <View style={styles.personTorso} />
-          <View style={styles.personLegs}>
-            <View style={styles.leg} />
-            <View style={styles.leg} />
-          </View>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
           <View style={styles.scanLine} />
         </View>
         <View style={styles.copy}>
-          <Text style={styles.kicker}>STEP 1 OF 3</Text>
-          <Text style={styles.title}>Create a private measurement snapshot.</Text>
-          <Text style={styles.subtitle}>Stand in frame with good lighting. Measurements are versioned to keep avatar generation reproducible.</Text>
+          <Text style={styles.eyebrow}>STEP 1</Text>
+          <Text style={styles.title}>Scan your body</Text>
+          <Text style={styles.subtitle}>Stand straight in good lighting. Keep your full body inside the frame.</Text>
         </View>
-        <View style={styles.instructions}>
-          <Text style={styles.instruction}>• Keep full body visible</Text>
-          <Text style={styles.instruction}>• Wear fitted clothing</Text>
-          <Text style={styles.instruction}>• Rotate slowly when prompted</Text>
+        <View style={styles.checkList}>
+          <Text style={styles.checkItem}>• Full body visible</Text>
+          <Text style={styles.checkItem}>• Fitted clothing</Text>
+          <Text style={styles.checkItem}>• Plain background</Text>
         </View>
-        <Button title="Start Body Scan" onPress={onScan} />
+        <Button title="Start Scan" onPress={onScan} />
       </View>
     </View>
   );
 }
 
-const cornerBase = {
+const corner = {
   position: 'absolute' as const,
-  width: 38,
-  height: 38,
+  width: 40,
+  height: 40,
   borderColor: colors.text,
 };
 
@@ -55,13 +51,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: spacing.xl,
-    gap: spacing.xl,
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
-  scanStage: {
+  cameraBox: {
     flex: 1,
-    minHeight: 360,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -69,73 +64,82 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  cornerTopLeft: { ...cornerBase, top: spacing.lg, left: spacing.lg, borderTopWidth: 2, borderLeftWidth: 2 },
-  cornerTopRight: { ...cornerBase, top: spacing.lg, right: spacing.lg, borderTopWidth: 2, borderRightWidth: 2 },
-  cornerBottomLeft: { ...cornerBase, bottom: spacing.lg, left: spacing.lg, borderBottomWidth: 2, borderLeftWidth: 2 },
-  cornerBottomRight: { ...cornerBase, bottom: spacing.lg, right: spacing.lg, borderBottomWidth: 2, borderRightWidth: 2 },
-  personHead: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+  cornerTopLeft: {
+    ...corner,
+    top: spacing.lg,
+    left: spacing.lg,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+  },
+  cornerTopRight: {
+    ...corner,
+    top: spacing.lg,
+    right: spacing.lg,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+  },
+  cornerBottomLeft: {
+    ...corner,
+    bottom: spacing.lg,
+    left: spacing.lg,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
+  },
+  cornerBottomRight: {
+    ...corner,
+    bottom: spacing.lg,
+    right: spacing.lg,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
+  },
+  avatarHead: {
+    width: 62,
+    height: 62,
+    borderRadius: radius.pill,
     backgroundColor: colors.text,
     marginBottom: spacing.md,
   },
-  personTorso: {
-    width: 116,
-    height: 154,
-    borderTopLeftRadius: 58,
-    borderTopRightRadius: 58,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+  avatarBody: {
+    width: 132,
+    height: 220,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: 66,
+    borderTopRightRadius: 66,
     borderWidth: 2,
     borderColor: colors.text,
     backgroundColor: colors.card,
-  },
-  personLegs: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  leg: {
-    width: 42,
-    height: 98,
-    borderRadius: radius.md,
-    backgroundColor: colors.elevated,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   scanLine: {
     position: 'absolute',
     left: spacing.xl,
     right: spacing.xl,
-    top: '42%',
     height: 2,
     backgroundColor: colors.text,
   },
   copy: {
     gap: spacing.sm,
   },
-  kicker: {
-    ...typography.micro,
+  eyebrow: {
+    ...typography.caption,
     color: colors.muted,
   },
   title: {
-    ...typography.h1,
+    ...typography.title,
     color: colors.text,
   },
   subtitle: {
     ...typography.body,
     color: colors.muted,
   },
-  instructions: {
+  checkList: {
     borderRadius: radius.lg,
-    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  instruction: {
+  checkItem: {
     ...typography.body,
     color: colors.text,
   },

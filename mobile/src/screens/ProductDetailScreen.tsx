@@ -13,28 +13,28 @@ export function ProductDetailScreen({ product, onBack, onTryOn }: Props) {
     <View style={styles.screen}>
       <Header title="PRODUCT" showBack onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.productStage, { backgroundColor: product.color }]}>
+        <View style={[styles.productArt, { backgroundColor: product.color }]}>
           <View style={[styles.hanger, { backgroundColor: product.accent }]} />
-          <View style={[styles.sleeveLeft, { backgroundColor: product.accent }]} />
+          <View style={[styles.sleeve, styles.leftSleeve, { backgroundColor: product.accent }]} />
           <View style={[styles.body, { borderColor: product.accent }]} />
-          <View style={[styles.sleeveRight, { backgroundColor: product.accent }]} />
+          <View style={[styles.sleeve, styles.rightSleeve, { backgroundColor: product.accent }]} />
         </View>
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <Text style={styles.title}>{product.title}</Text>
-            <Text style={styles.meta}>{product.category}</Text>
+            <Text style={styles.subtitle}>{product.category}</Text>
           </View>
           <Text style={styles.price}>${product.price}</Text>
         </View>
-        <Text style={styles.description}>A premium try-on ready garment rendered as native interface shapes. Source assets remain untouched while previews adapt to your avatar measurements.</Text>
+        <Text style={styles.description}>Preview this piece on your avatar before adding it to your bag.</Text>
         <View style={styles.infoGrid}>
-          <Info label="Fit" value={product.fit} />
-          <Info label="Preview" value="Non-destructive" />
-          <Info label="Sizes" value="XS–XL" />
+          <Info label="Fit" value="Avatar ready" />
+          <Info label="Size" value="M suggested" />
           <Info label="Return risk" value="Low" />
+          <Info label="Try-on" value="Live" />
         </View>
         <Button title="Virtual Try-On" onPress={onTryOn} />
-        <Button title="Add to Wishlist" variant="secondary" />
+        <Button title="Add to Bag" variant="secondary" />
       </ScrollView>
     </View>
   );
@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxxl,
-    gap: spacing.xl,
+    gap: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
-  productStage: {
-    height: 430,
-    borderRadius: radius.xl,
+  productArt: {
+    height: 420,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -70,61 +70,55 @@ const styles = StyleSheet.create({
   },
   hanger: {
     position: 'absolute',
-    top: 54,
-    width: 82,
+    top: spacing.xxl,
+    width: 84,
     height: 6,
     borderRadius: radius.pill,
   },
-  sleeveLeft: {
+  sleeve: {
     position: 'absolute',
-    left: 70,
     top: 150,
     width: 64,
     height: 150,
-    borderRadius: radius.xl,
-    opacity: 0.74,
-    transform: [{ rotate: '13deg' }],
+    borderRadius: radius.lg,
+    opacity: 0.7,
   },
-  sleeveRight: {
-    position: 'absolute',
-    right: 70,
-    top: 150,
-    width: 64,
-    height: 150,
-    borderRadius: radius.xl,
-    opacity: 0.74,
-    transform: [{ rotate: '-13deg' }],
+  leftSleeve: {
+    left: 72,
+    transform: [{ rotate: '12deg' }],
+  },
+  rightSleeve: {
+    right: 72,
+    transform: [{ rotate: '-12deg' }],
   },
   body: {
     width: 160,
     height: 230,
-    borderTopLeftRadius: 78,
-    borderTopRightRadius: 78,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
     borderWidth: 3,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.16)',
   },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.lg,
-    alignItems: 'flex-start',
   },
   titleCopy: {
     flex: 1,
   },
   title: {
-    ...typography.h1,
+    ...typography.title,
     color: colors.text,
   },
-  meta: {
+  subtitle: {
     ...typography.body,
     color: colors.muted,
     marginTop: spacing.xs,
   },
   price: {
-    ...typography.h1,
+    ...typography.heading,
     color: colors.text,
   },
   description: {
@@ -134,25 +128,23 @@ const styles = StyleSheet.create({
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -spacing.sm,
-    rowGap: spacing.md,
+    gap: spacing.md,
   },
   infoCard: {
-    width: '50%',
-    paddingHorizontal: spacing.sm,
-  },
-  infoLabel: {
-    ...typography.micro,
-    color: colors.subtle,
-    marginBottom: spacing.xs,
-  },
-  infoValue: {
-    ...typography.bodyStrong,
-    color: colors.text,
-    borderRadius: radius.lg,
+    width: '48%',
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
     padding: spacing.lg,
+  },
+  infoLabel: {
+    ...typography.caption,
+    color: colors.muted,
+  },
+  infoValue: {
+    ...typography.body,
+    color: colors.text,
+    marginTop: spacing.xs,
   },
 });

@@ -9,35 +9,30 @@ type Props = TextInputProps & {
 
 export function Input({ label, ...props }: Props) {
   return (
-    <View style={styles.wrapper}>
+    <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.subtle}
-        selectionColor={colors.text}
-        style={styles.input}
-        {...props}
-      />
+      <TextInput placeholderTextColor={colors.muted} selectionColor={colors.text} style={styles.input} {...props} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     gap: spacing.sm,
   },
   label: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.muted,
     textTransform: 'uppercase',
   },
   input: {
-    minHeight: 58,
+    minHeight: 54,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.text,
     paddingHorizontal: spacing.lg,
-    ...typography.bodyStrong,
+    ...typography.body,
   },
 });

@@ -3,46 +3,17 @@ export type Product = {
   title: string;
   category: string;
   price: number;
-  fit: string;
   color: string;
   accent: string;
 };
 
+export const categories = ['All', 'Jackets', 'Shirts', 'Pants', 'Shoes', 'Saved'];
+
 export const products: Product[] = [
-  {
-    id: 'brown-jacket',
-    title: 'Brown Jacket',
-    category: 'Outerwear Men’s',
-    price: 120,
-    fit: 'Relaxed fit',
-    color: '#7A5136',
-    accent: '#B58B67',
-  },
-  {
-    id: 'black-jacket',
-    title: 'Black Jacket',
-    category: 'Outerwear Men’s',
-    price: 120,
-    fit: 'Structured fit',
-    color: '#202020',
-    accent: '#6E6E6E',
-  },
-  {
-    id: 'cream-shirt',
-    title: 'Cream Shirt',
-    category: 'Essentials',
-    price: 85,
-    fit: 'True to size',
-    color: '#D8D0C4',
-    accent: '#EFE7DA',
-  },
-  {
-    id: 'wide-trouser',
-    title: 'Wide Trouser',
-    category: 'Tailored Fit',
-    price: 95,
-    fit: 'Wide leg',
-    color: '#2B2A29',
-    accent: '#9B9185',
-  },
+  { id: 'brown-jacket', title: 'Brown Jacket', category: 'Jackets', price: 120, color: '#7B4F34', accent: '#C79A72' },
+  { id: 'black-jacket', title: 'Black Jacket', category: 'Jackets', price: 140, color: '#242424', accent: '#757575' },
+  { id: 'cream-shirt', title: 'Cream Shirt', category: 'Shirts', price: 85, color: '#D7CFC2', accent: '#F2E8D8' },
+  { id: 'wide-trouser', title: 'Wide Trouser', category: 'Pants', price: 95, color: '#303030', accent: '#8E8E8E' },
+  { id: 'runner-sneaker', title: 'Runner Sneaker', category: 'Shoes', price: 110, color: '#E8E8E8', accent: '#9B9B9B' },
+  { id: 'linen-overshirt', title: 'Linen Overshirt', category: 'Shirts', price: 100, color: '#948470', accent: '#D5C8B7' },
 ];

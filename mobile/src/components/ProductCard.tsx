@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Product } from '../data/products';
 import { colors, radius, spacing, typography } from '../styles/theme';
@@ -12,26 +12,26 @@ type Props = {
 
 export function ProductCard({ product, onPress, onTryOn }: Props) {
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.card}>
-      <View style={[styles.productArt, { backgroundColor: product.color }]}>
+    <Pressable onPress={onPress} style={styles.card}>
+      <View style={[styles.art, { backgroundColor: product.color }]}>
         <View style={[styles.hanger, { backgroundColor: product.accent }]} />
-        <View style={styles.shoulders}>
-          <View style={[styles.sleeve, { backgroundColor: product.accent }]} />
-          <View style={[styles.body, { backgroundColor: product.color, borderColor: product.accent }]} />
-          <View style={[styles.sleeve, { backgroundColor: product.accent }]} />
+        <View style={styles.garmentRow}>
+          <View style={[styles.sleeve, styles.leftSleeve, { backgroundColor: product.accent }]} />
+          <View style={[styles.body, { borderColor: product.accent }]} />
+          <View style={[styles.sleeve, styles.rightSleeve, { backgroundColor: product.accent }]} />
         </View>
-        <TouchableOpacity activeOpacity={0.82} onPress={onTryOn} style={styles.tryButton}>
-          <Text style={styles.tryText}>Try-On</Text>
-        </TouchableOpacity>
+        <Pressable onPress={onTryOn} style={styles.tryButton}>
+          <Text style={styles.tryText}>Try</Text>
+        </Pressable>
       </View>
-      <View style={styles.metaRow}>
-        <View style={styles.copy}>
+      <View style={styles.infoRow}>
+        <View style={styles.infoText}>
           <Text numberOfLines={1} style={styles.title}>{product.title}</Text>
           <Text numberOfLines={1} style={styles.category}>{product.category}</Text>
         </View>
         <Text style={styles.price}>${product.price}</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -40,79 +40,85 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.md,
   },
-  productArt: {
-    minHeight: 214,
-    borderRadius: radius.xl,
+  art: {
+    height: 210,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   hanger: {
     position: 'absolute',
-    top: 28,
+    top: spacing.xl,
     width: 54,
     height: 5,
     borderRadius: radius.pill,
     opacity: 0.9,
   },
-  shoulders: {
-    width: '80%',
+  garmentRow: {
+    width: '82%',
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
   sleeve: {
-    width: '22%',
-    height: 112,
+    width: 34,
+    height: 104,
     borderRadius: radius.lg,
-    opacity: 0.64,
-    transform: [{ rotate: '10deg' }],
+    opacity: 0.7,
+  },
+  leftSleeve: {
+    transform: [{ rotate: '11deg' }],
+  },
+  rightSleeve: {
+    transform: [{ rotate: '-11deg' }],
   },
   body: {
-    width: '46%',
-    height: 142,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    width: 78,
+    height: 132,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     borderBottomLeftRadius: radius.md,
     borderBottomRightRadius: radius.md,
     borderWidth: 2,
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   tryButton: {
     position: 'absolute',
-    right: spacing.md,
-    top: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    right: spacing.sm,
+    top: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   tryText: {
     ...typography.caption,
     color: colors.inverse,
   },
-  metaRow: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  copy: {
+  infoText: {
     flex: 1,
   },
   title: {
-    ...typography.bodyStrong,
+    ...typography.body,
     color: colors.text,
   },
   category: {
     ...typography.caption,
     color: colors.muted,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   price: {
-    ...typography.h2,
+    ...typography.heading,
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
   },
 });

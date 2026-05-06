@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../styles/theme';
 
@@ -7,46 +7,46 @@ type Props = {
   title: string;
   onPress?: () => void;
   variant?: 'primary' | 'secondary' | 'ghost';
-  loading?: boolean;
   style?: ViewStyle;
 };
 
-export function Button({ title, onPress, variant = 'primary', loading = false, style }: Props) {
-  const textColor = variant === 'primary' ? colors.inverse : colors.text;
-
+export function Button({ title, onPress, variant = 'primary', style }: Props) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.82}
-      disabled={loading}
-      onPress={onPress}
-      style={[styles.base, styles[variant], style]}
-    >
-      {loading ? <ActivityIndicator color={textColor} /> : <Text style={[styles.text, { color: textColor }]}>{title}</Text>}
-    </TouchableOpacity>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.base, styles[variant], pressed && styles.pressed, style]}>
+      <Text style={[styles.text, variant === 'primary' ? styles.primaryText : styles.lightText]}>{title}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 58,
-    borderRadius: radius.pill,
+    minHeight: 54,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   primary: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.text,
   },
   secondary: {
-    backgroundColor: colors.elevated,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
   },
   ghost: {
-    minHeight: 44,
     backgroundColor: 'transparent',
+  },
+  pressed: {
+    opacity: 0.75,
   },
   text: {
     ...typography.button,
+  },
+  primaryText: {
+    color: colors.inverse,
+  },
+  lightText: {
+    color: colors.text,
   },
 });

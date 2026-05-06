@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
@@ -9,31 +9,29 @@ import { colors, radius, spacing, typography } from '../styles/theme';
 type Props = { onDone: () => void; onBack: () => void };
 
 export function AuthScreen({ onDone, onBack }: Props) {
-  const [codeSent, setCodeSent] = useState(false);
+  const [showCode, setShowCode] = useState(false);
 
   return (
     <View style={styles.screen}>
       <Header showBack onBack={onBack} />
       <View style={styles.content}>
         <View style={styles.copy}>
-          <Text style={styles.kicker}>SECURE SIGN IN</Text>
-          <Text style={styles.title}>{codeSent ? 'Verify your number' : 'Login to your account'}</Text>
-          <Text style={styles.subtitle}>{codeSent ? 'Enter the code sent to your mobile number.' : 'Authenticate before scanning, trying on, or purchasing.'}</Text>
+          <Text style={styles.eyebrow}>SIGN IN</Text>
+          <Text style={styles.title}>{showCode ? 'Enter your code' : 'Welcome back'}</Text>
+          <Text style={styles.subtitle}>{showCode ? 'Use the code sent to your phone.' : 'Log in to access your scans, avatar, and try-ons.'}</Text>
         </View>
-        {codeSent ? (
-          <View style={styles.otpRow}>
-            {['', '', '', ''].map((_, index) => <View key={index} style={styles.otpBox}><Text style={styles.otpText}>{index === 0 ? '4' : ''}</Text></View>)}
+        {showCode ? (
+          <View style={styles.codeRow}>
+            {[0, 1, 2, 3].map((item) => <View key={item} style={styles.codeBox}><Text style={styles.codeText}>{item === 0 ? '4' : ''}</Text></View>)}
           </View>
         ) : (
-          <Input label="Mobile number" value="+1 555 018 2048" keyboardType="phone-pad" />
+          <Input label="Phone number" value="+1 555 018 2048" keyboardType="phone-pad" />
         )}
-        <Button title={codeSent ? 'Continue' : 'Send Code'} onPress={codeSent ? onDone : () => setCodeSent(true)} />
-        <View style={styles.divider}><View style={styles.rule} /><Text style={styles.dividerText}>OR</Text><View style={styles.rule} /></View>
-        <Button title="Continue with Google" variant="secondary" />
-        <Button title="Continue with Apple" variant="secondary" />
-        <TouchableOpacity activeOpacity={0.8}>
-          <Text style={styles.join}>Don’t have an account? <Text style={styles.link}>Join Raritone</Text></Text>
-        </TouchableOpacity>
+        <Button title={showCode ? 'Continue' : 'Send Code'} onPress={showCode ? onDone : () => setShowCode(true)} />
+        <View style={styles.socialGroup}>
+          <Button title="Continue with Google" variant="secondary" />
+          <Button title="Continue with Apple" variant="secondary" />
+        </View>
       </View>
     </View>
   );
@@ -46,33 +44,33 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: spacing.xl,
+    padding: spacing.lg,
     justifyContent: 'center',
     gap: spacing.lg,
   },
   copy: {
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  kicker: {
-    ...typography.micro,
+  eyebrow: {
+    ...typography.caption,
     color: colors.muted,
   },
   title: {
-    ...typography.hero,
+    ...typography.title,
     color: colors.text,
   },
   subtitle: {
     ...typography.body,
     color: colors.muted,
   },
-  otpRow: {
+  codeRow: {
     flexDirection: 'row',
     gap: spacing.md,
   },
-  otpBox: {
+  codeBox: {
     flex: 1,
-    height: 64,
+    height: 62,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -80,33 +78,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  otpText: {
-    ...typography.h1,
+  codeText: {
+    ...typography.heading,
     color: colors.text,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  socialGroup: {
     gap: spacing.md,
-    marginVertical: spacing.sm,
-  },
-  rule: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    ...typography.micro,
-    color: colors.subtle,
-  },
-  join: {
-    ...typography.body,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  link: {
-    color: colors.text,
-    fontWeight: '800',
+    marginTop: spacing.lg,
   },
 });

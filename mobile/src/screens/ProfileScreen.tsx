@@ -9,29 +9,38 @@ export function ProfileScreen() {
     <View style={styles.screen}>
       <Header title="PROFILE" />
       <View style={styles.content}>
-        <View style={styles.identityCard}>
-          <View style={styles.avatar}><Text style={styles.initial}>R</Text></View>
-          <View style={styles.identityCopy}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>R</Text>
+          </View>
+          <View style={styles.profileCopy}>
             <Text style={styles.name}>Raritone Member</Text>
             <Text style={styles.email}>member@raritone.app</Text>
           </View>
         </View>
         <View style={styles.measureCard}>
-          <Text style={styles.sectionTitle}>Measurement Snapshot</Text>
-          <View style={styles.measureRow}><Text style={styles.measureLabel}>Version</Text><Text style={styles.measureValue}>v1.0</Text></View>
-          <View style={styles.measureRow}><Text style={styles.measureLabel}>Height</Text><Text style={styles.measureValue}>175 cm</Text></View>
-          <View style={styles.measureRow}><Text style={styles.measureLabel}>Chest</Text><Text style={styles.measureValue}>34 in</Text></View>
-          <View style={styles.measureRow}><Text style={styles.measureLabel}>Waist</Text><Text style={styles.measureValue}>28 in</Text></View>
+          <Text style={styles.sectionTitle}>Body Profile</Text>
+          <Row label="Scan version" value="v1.0" />
+          <Row label="Height" value="175 cm" />
+          <Row label="Chest" value="34 in" />
+          <Row label="Waist" value="28 in" />
         </View>
         <View style={styles.menuCard}>
-          {['Orders', 'Saved products', 'Privacy controls', 'Help center'].map((item) => (
-            <View key={item} style={styles.menuRow}>
-              <Text style={styles.menuText}>{item}</Text>
-              <Text style={styles.chevron}>›</Text>
-            </View>
-          ))}
+          <Row label="Orders" value="›" />
+          <Row label="Saved products" value="›" />
+          <Row label="Privacy" value="›" />
+          <Row label="Support" value="›" />
         </View>
       </View>
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
 }
@@ -43,36 +52,36 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: spacing.xl,
-    gap: spacing.xl,
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
-  identityCard: {
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
-  avatar: {
+  avatarCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: radius.pill,
     backgroundColor: colors.text,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  initial: {
-    ...typography.h1,
+  avatarText: {
+    ...typography.heading,
     color: colors.inverse,
   },
-  identityCopy: {
+  profileCopy: {
     flex: 1,
   },
   name: {
-    ...typography.h2,
+    ...typography.heading,
     color: colors.text,
   },
   email: {
@@ -81,54 +90,40 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   measureCard: {
-    borderRadius: radius.xl,
-    backgroundColor: colors.elevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
-    gap: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.h2,
-    color: colors.text,
-  },
-  measureRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: spacing.md,
-  },
-  measureLabel: {
-    ...typography.body,
-    color: colors.muted,
-  },
-  measureValue: {
-    ...typography.bodyStrong,
-    color: colors.text,
-  },
-  menuCard: {
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    overflow: 'hidden',
+    padding: spacing.lg,
+    gap: spacing.md,
   },
-  menuRow: {
-    minHeight: 58,
+  menuCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.heading,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  row: {
+    minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  menuText: {
-    ...typography.bodyStrong,
-    color: colors.text,
-  },
-  chevron: {
+  rowLabel: {
+    ...typography.body,
     color: colors.muted,
-    fontSize: 26,
+  },
+  rowValue: {
+    ...typography.body,
+    color: colors.text,
   },
 });

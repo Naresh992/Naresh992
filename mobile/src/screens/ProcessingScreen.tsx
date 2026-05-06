@@ -9,17 +9,17 @@ type Props = { onComplete: () => void };
 export function ProcessingScreen({ onComplete }: Props) {
   return (
     <View style={styles.screen}>
-      <View style={styles.loader}>
-        <View style={styles.ring}>
-          <Text style={styles.percent}>86%</Text>
+      <View style={styles.loaderWrap}>
+        <View style={styles.loaderCircle}>
+          <Text style={styles.loaderText}>86%</Text>
         </View>
       </View>
       <View style={styles.copy}>
-        <Text style={styles.kicker}>GENERATING AVATAR</Text>
-        <Text style={styles.title}>Building your measurement snapshot.</Text>
-        <Text style={styles.subtitle}>We are creating a reproducible avatar profile for try-on previews.</Text>
+        <Text style={styles.eyebrow}>PROCESSING</Text>
+        <Text style={styles.title}>Creating your avatar</Text>
+        <Text style={styles.subtitle}>Measurements are being converted into a reusable try-on profile.</Text>
       </View>
-      <Button title="Finish Processing" onPress={onComplete} />
+      <Button title="Finish" onPress={onComplete} />
     </View>
   );
 }
@@ -27,39 +27,39 @@ export function ProcessingScreen({ onComplete }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    padding: spacing.lg,
     backgroundColor: colors.background,
-    padding: spacing.xl,
     justifyContent: 'space-between',
   },
-  loader: {
+  loaderWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ring: {
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    borderWidth: 14,
+  loaderCircle: {
+    width: 170,
+    height: 170,
+    borderRadius: radius.pill,
+    borderWidth: 12,
     borderColor: colors.text,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
-  percent: {
+  loaderText: {
     ...typography.display,
     color: colors.text,
   },
   copy: {
-    gap: spacing.md,
-    marginBottom: spacing.xxl,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
   },
-  kicker: {
-    ...typography.micro,
+  eyebrow: {
+    ...typography.caption,
     color: colors.muted,
   },
   title: {
-    ...typography.hero,
+    ...typography.title,
     color: colors.text,
   },
   subtitle: {

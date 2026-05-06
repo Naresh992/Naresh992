@@ -1,37 +1,33 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typography } from '../styles/theme';
+import { colors, radius, spacing, typography } from '../styles/theme';
 
 type Props = {
   title?: string;
-  subtitle?: string;
   showBack?: boolean;
   onBack?: () => void;
   onProfile?: () => void;
 };
 
-export function Header({ title = 'RARITONE', subtitle, showBack = false, onBack, onProfile }: Props) {
+export function Header({ title = 'RARITONE', showBack = false, onBack, onProfile }: Props) {
   return (
     <View style={styles.header}>
-      <View style={styles.leftSlot}>
+      <View style={styles.side}>
         {showBack ? (
-          <TouchableOpacity activeOpacity={0.8} onPress={onBack} style={styles.iconButton}>
-            <Text style={styles.icon}>‹</Text>
-          </TouchableOpacity>
+          <Pressable onPress={onBack} style={styles.iconButton}>
+            <Text style={styles.backIcon}>‹</Text>
+          </Pressable>
         ) : (
-          <View style={styles.brandDot} />
+          <View style={styles.logoMark} />
         )}
       </View>
-      <View style={styles.titleBlock}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      </View>
-      <View style={styles.rightSlot}>
+      <Text style={styles.logo}>{title}</Text>
+      <View style={styles.sideRight}>
         {onProfile ? (
-          <TouchableOpacity activeOpacity={0.8} onPress={onProfile} style={styles.profileButton}>
+          <Pressable onPress={onProfile} style={styles.profileButton}>
             <Text style={styles.profileText}>R</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : null}
       </View>
     </View>
@@ -40,66 +36,55 @@ export function Header({ title = 'RARITONE', subtitle, showBack = false, onBack,
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 72,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    justifyContent: 'space-between',
+    backgroundColor: colors.background,
   },
-  leftSlot: {
+  side: {
     width: 48,
     alignItems: 'flex-start',
   },
-  rightSlot: {
+  sideRight: {
     width: 48,
     alignItems: 'flex-end',
   },
-  brandDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  logoMark: {
+    width: 14,
+    height: 14,
+    borderRadius: radius.pill,
     backgroundColor: colors.text,
   },
-  titleBlock: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  title: {
+  logo: {
     ...typography.caption,
     color: colors.text,
-    letterSpacing: 2.6,
-  },
-  subtitle: {
-    ...typography.micro,
-    color: colors.muted,
-    marginTop: 2,
+    letterSpacing: 2.4,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
-  icon: {
+  backIcon: {
     color: colors.text,
     fontSize: 34,
     lineHeight: 36,
   },
   profileButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    backgroundColor: colors.text,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.elevated,
   },
   profileText: {
     ...typography.caption,
-    color: colors.text,
+    color: colors.inverse,
   },
 });
