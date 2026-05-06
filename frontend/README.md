@@ -1,6 +1,6 @@
 # Raritone Web Frontend
 
-This Vite/React frontend now includes a Figma-inspired screen board based on the provided screenshots.
+This dependency-free web frontend includes a Figma-inspired screen board based on the provided screenshots and runs with plain Node.js static serving.
 
 `src/figmaScreens.js` is the screenshot coverage manifest used by the frontend header checklist.
 
@@ -27,6 +27,7 @@ This Vite/React frontend now includes a Figma-inspired screen board based on the
 
 ## Run locally
 ```bash
-npm install
 npm run dev
 ```
+
+No package installation is required for the frontend preview.
