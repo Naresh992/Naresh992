@@ -30,6 +30,14 @@ This repository is initialized for building **Raritone**, a production-ready vir
 ./scripts_verify.sh
 ```
 
+## Frontend web preview
+The web frontend is dependency-free and can be used immediately:
+```bash
+cd frontend
+npm run dev
+```
+Open `http://localhost:5173` in a browser.
+
 ## Initial development workflow
 Build in small milestones:
 1. Frontend auth flow
