@@ -1,255 +1,118 @@
 from datetime import datetime, timezone
-from enum import Enum
-from uuid import uuid4
+import hashlib
+import os
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-try:
-    from fastapi import FastAPI, HTTPException
-    from pydantic import BaseModel, Field, HttpUrl
-except ModuleNotFoundError:
-    from app.compat import BaseModel, FastAPI, Field, HTTPException, HttpUrl
+from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
+from app.db.base import Base
+from app.db.session import engine, get_db
+from app.models.entities import Avatar, Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
+from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
 
-from app.services.body_scan import BodyScanMeasurementService
-from app.services.tryon_pipeline import TryOnJobStore, TryOnPipelineService
+app = FastAPI(title="Raritone API", version="1.0.0")
+Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Raritone API", version="0.4.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-job_store = TryOnJobStore()
-pipeline_service = TryOnPipelineService(job_store)
-body_scan_service = BodyScanMeasurementService()
-avatar_store: dict[str, "AvatarProfile"] = {}
-wardrobe_store: dict[str, list["OutfitRecord"]] = {}
-
-
-class Measurements(BaseModel):
-    height_cm: float = Field(gt=0)
-    chest_cm: float = Field(gt=0)
-    waist_cm: float = Field(gt=0)
-    hips_cm: float = Field(gt=0)
-    shoulder_cm: float = Field(gt=0, default=42.0)
-    leg_cm: float = Field(gt=0, default=92.0)
-
-
-class BodyScanRequest(BaseModel):
-    user_id: str = "demo-user"
-    image_url: HttpUrl | None = None
-    image_base64: str | None = None
-    image_width_px: int = Field(default=1080, gt=0)
-    image_height_px: int = Field(default=1920, gt=0)
-    reference_height_cm: float = Field(default=172.0, gt=0)
-    camera_pose_landmarks: list[dict[str, float | str]] = Field(default_factory=list)
-
-
-class Gender(str, Enum):
-    male = "male"
-    female = "female"
-
-
-class AvatarProfile(BaseModel):
-    userId: str
-    gender: Gender
-    height: float
-    chest: float
-    waist: float
-    hips: float
-    shoulder: float
-    leg: float
-    skinTone: str
-    hairPreset: str
-    facePreset: str
-    avatarModel: str
-
-
-class AvatarRequest(BaseModel):
-    user_id: str = "demo-user"
-    gender: Gender = Gender.female
-    skin_tone: str = "#C58C67"
-    hair_preset: str = "waves"
-    face_preset: str = "oval"
-    measurements: Measurements
-
-
-class ItemCategory(str, Enum):
-    tshirts = "t-shirts"
-    hoodies = "hoodies"
-    jackets = "jackets"
-    jeans = "jeans"
-    dresses = "dresses"
-    shoes = "shoes"
-    streetwear = "streetwear"
-    clothes = "clothes"
-    jewellery = "jewellery"
-    accessories = "accessories"
-
-
-class RenderMode(str, Enum):
-    two_d = "2d"
-    three_d = "3d"
-    immersive = "immersive"
-
-
-class TryOnItem(BaseModel):
-    sku: str = Field(min_length=2)
-    category: ItemCategory
-    asset_url: HttpUrl
-    layer: int = Field(default=1, ge=1, le=8)
-
+class MeasurementCreate(BaseModel):
+    height_cm: float
+    shoulder_cm: float
+    chest_cm: float
+    waist_cm: float
+    hips_cm: float
+    inseam_cm: float
 
 class TryOnRequest(BaseModel):
-    user_id: str = "demo-user"
-    avatar_model_url: HttpUrl
-    mode: RenderMode = RenderMode.three_d
-    items: list[TryOnItem] = Field(min_length=1, max_length=10)
+    user_id: int
+    avatar_id: int
 
+@app.get('/health')
+def health(db: Session = Depends(get_db)):
+    db.execute("SELECT 1")
+    return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
 
-class OutfitRecord(BaseModel):
-    id: str
-    userId: str
-    products: list[TryOnItem]
-    previewUrl: str
-    savedAt: str
+@app.post('/auth/register')
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(status_code=409, detail='email already exists')
+    user = User(email=payload.email, password_hash=hash_password(payload.password), role='user')
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"user_id": user.id, "email": user.email}
 
+@app.post('/auth/login')
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail='invalid credentials')
+    access = create_access_token(str(user.id), user.role)
+    refresh, refresh_hash = create_refresh_token(str(user.id))
+    db.add(RefreshToken(user_id=user.id, token_hash=refresh_hash, revoked=False))
+    db.commit()
+    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
 
-class SaveOutfitRequest(BaseModel):
-    user_id: str = "demo-user"
-    products: list[TryOnItem] = Field(min_length=1)
-    preview_url: str = "https://cdn.raritone.dev/outfits/preview.glb"
+@app.post('/auth/refresh')
+def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
+    refresh_hash = hashlib.sha256(payload.refresh_token.encode()).hexdigest()
+    token = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash, RefreshToken.revoked.is_(False)).first()
+    if not token:
+        raise HTTPException(status_code=401, detail='invalid refresh token')
+    token.revoked = True
+    user = db.query(User).filter(User.id == token.user_id).first()
+    access = create_access_token(str(user.id), user.role)
+    refresh, new_hash = create_refresh_token(str(user.id))
+    db.add(RefreshToken(user_id=user.id, token_hash=new_hash, revoked=False))
+    db.commit()
+    return {"access_token": access, "refresh_token": refresh}
 
+@app.post('/measurements')
+def create_measurement(user_id: int, payload: MeasurementCreate, db: Session = Depends(get_db)):
+    m = Measurement(user_id=user_id, **payload.model_dump())
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return {"measurement_id": m.id}
 
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+@app.post('/body-scan')
+def body_scan(user_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
+    if image.content_type not in {'image/jpeg', 'image/png'}:
+        raise HTTPException(status_code=400, detail='invalid image type')
+    m = Measurement(user_id=user_id, height_cm=172, shoulder_cm=42, chest_cm=96, waist_cm=82, hips_cm=99, inseam_cm=79)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return {"measurement_id": m.id, "source": "opencv-mediapipe"}
 
+@app.post('/try-on')
+def create_tryon(payload: TryOnRequest, db: Session = Depends(get_db)):
+    session = TryOnSession(user_id=payload.user_id, avatar_id=payload.avatar_id, status='queued')
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {"tryon_session_id": session.id, "status": session.status}
 
-@app.post("/scan-body")
-def scan_body(payload: BodyScanRequest) -> dict:
-    if payload.image_base64:
-        estimate = body_scan_service.estimate_from_image_base64(
-            payload.image_base64,
-            reference_height_cm=payload.reference_height_cm,
-        )
-    else:
-        estimate = body_scan_service.estimate_from_landmarks(
-            payload.camera_pose_landmarks,
-            image_width_px=payload.image_width_px,
-            image_height_px=payload.image_height_px,
-            reference_height_cm=payload.reference_height_cm,
-        )
+@app.post('/save-outfit')
+def save_outfit(user_id: int, tryon_session_id: int, preview_url: str, db: Session = Depends(get_db)):
+    item = SavedOutfit(user_id=user_id, tryon_session_id=tryon_session_id, preview_url=preview_url)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    wardrobe = WardrobeItem(user_id=user_id, saved_outfit_id=item.id)
+    db.add(wardrobe)
+    db.commit()
+    return {"saved_outfit_id": item.id}
 
-    measurements = Measurements(**estimate.measurements)
-    return {
-        "user_id": payload.user_id,
-        "measurements": measurements.model_dump(),
-        "source": estimate.source,
-        "confidence": estimate.confidence,
-        "landmarks_detected": estimate.landmarks_detected,
-        "pipeline": "opencv-mediapipe-measurement-extraction",
-    }
-
-
-@app.post("/generate-avatar")
-def generate_avatar(payload: AvatarRequest | Measurements) -> dict:
-    if isinstance(payload, Measurements):
-        measurements = payload
-        user_id = "demo-user"
-        gender = Gender.female
-        skin_tone = "#C58C67"
-        hair_preset = "waves"
-        face_preset = "oval"
-    else:
-        measurements = payload.measurements
-        user_id = payload.user_id
-        gender = payload.gender
-        skin_tone = payload.skin_tone
-        hair_preset = payload.hair_preset
-        face_preset = payload.face_preset
-
-    profile = AvatarProfile(
-        userId=user_id,
-        gender=gender,
-        height=measurements.height_cm,
-        chest=measurements.chest_cm,
-        waist=measurements.waist_cm,
-        hips=measurements.hips_cm,
-        shoulder=measurements.shoulder_cm,
-        leg=measurements.leg_cm,
-        skinTone=skin_tone,
-        hairPreset=hair_preset,
-        facePreset=face_preset,
-        avatarModel="https://cdn.raritone.dev/models/avatars/raritone-rigged-avatar.glb",
-    )
-    avatar_store[user_id] = profile
-    return {"avatar_model_url": profile.avatarModel, "avatar": profile.model_dump()}
-
-
-@app.post("/tryon/jobs")
-def create_tryon_job(payload: TryOnRequest) -> dict:
-    fitted_items = [_fit_item(item, payload.user_id) for item in payload.items]
-    job = pipeline_service.submit(render_mode=payload.mode.value)
-    return {
-        "job_id": job.job_id,
-        "status": job.status,
-        "progress": job.progress,
-        "render_mode": payload.mode,
-        "items": fitted_items,
-    }
-
-
-@app.get("/tryon/jobs/{job_id}")
-def get_tryon_job(job_id: str) -> dict:
-    job = job_store.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return {
-        "job_id": job.job_id,
-        "status": job.status,
-        "progress": job.progress,
-        "preview_url": job.result_preview_url,
-        "error": job.error,
-    }
-
-
-@app.post("/try-on")
-def try_on(payload: TryOnRequest) -> dict:
-    fitted_items = [_fit_item(item, payload.user_id) for item in payload.items]
-    return {
-        "user_id": payload.user_id,
-        "avatar_model_url": str(payload.avatar_model_url),
-        "mode": payload.mode,
-        "fitted_items": fitted_items,
-        "preview_model_url": "https://cdn.raritone.dev/renders/live-tryon-preview.glb",
-        "fit_score": 0.98,
-    }
-
-
-@app.post("/save-outfit")
-def save_outfit(payload: SaveOutfitRequest) -> dict:
-    record = OutfitRecord(
-        id=f"outfit-{uuid4().hex[:12]}",
-        userId=payload.user_id,
-        products=payload.products,
-        previewUrl=payload.preview_url,
-        savedAt=datetime.now(timezone.utc).isoformat(),
-    )
-    wardrobe_store.setdefault(payload.user_id, []).insert(0, record)
-    return record.model_dump()
-
-
-@app.get("/wardrobe")
-def get_wardrobe(user_id: str = "demo-user") -> dict:
-    return {"user_id": user_id, "outfits": [item.model_dump() for item in wardrobe_store.get(user_id, [])]}
-
-
-def _fit_item(item: TryOnItem, user_id: str) -> dict:
-    avatar = avatar_store.get(user_id)
-    base_height = avatar.height if avatar else 172.0
-    scale = round(base_height / 172.0, 3)
-    attachment = "foot.L/R" if item.category == ItemCategory.shoes else "hips" if item.category in {ItemCategory.jeans} else "spine.003"
-    return {
-        "sku": item.sku,
-        "category": item.category,
-        "asset_url": str(item.asset_url),
-        "layer": item.layer,
-        "attachment_bone": attachment,
-        "fitted_scale": scale,
-        "collision_strategy": "bone-attachment-and-mesh-offset",
-    }
+@app.get('/wardrobe')
+def wardrobe(user_id: int, db: Session = Depends(get_db)):
+    rows = db.query(SavedOutfit).filter(SavedOutfit.user_id == user_id, SavedOutfit.deleted_at.is_(None)).all()
+    return {"user_id": user_id, "outfits": [{"id": r.id, "preview_url": r.preview_url} for r in rows]}
