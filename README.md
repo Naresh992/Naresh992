@@ -30,6 +30,21 @@ This repository is initialized for building **Raritone**, a production-ready vir
 ./scripts_verify.sh
 ```
 
+## Backend dependency install when pip is blocked by a proxy
+If `python -m pip install -r backend/requirements.txt` fails with `Tunnel connection failed: 403 Forbidden`, run the backend installer. It prints proxy diagnostics, clears proxy variables for pip, retries against public PyPI, and verifies FastAPI/Pydantic/Pytest imports:
+```bash
+./scripts_install_backend_deps.sh
+```
+
+Manual equivalent:
+```bash
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+python -m pip install --upgrade pip
+python -m pip install -r backend/requirements.txt --index-url https://pypi.org/simple --trusted-host pypi.org --trusted-host files.pythonhosted.org
+```
+
+If this still fails, the network is blocking outbound PyPI access and you need an approved proxy, a package mirror, or pre-downloaded wheels.
+
 ## Frontend web preview
 The web frontend is dependency-free and can be used immediately:
 ```bash
