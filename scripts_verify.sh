@@ -11,10 +11,11 @@ if [ -f backend/.venv/bin/activate ]; then
     source .venv/bin/activate
     pytest -q
   )
-elif python -c "import fastapi, pytest" >/dev/null 2>&1; then
+elif python -c "import pytest" >/dev/null 2>&1; then
+  # Tests run against app.compat when FastAPI is unavailable.
   (cd backend && pytest -q)
 else
-  echo "WARNING: backend tests skipped because FastAPI/Pytest dependencies are not installed. Run ./scripts_setup.sh on a machine with package registry access."
+  echo "WARNING: backend tests skipped because pytest is not installed. Run ./scripts_setup.sh on a machine with package registry access."
 fi
 
 echo "[3/6] Frontend static build check"
