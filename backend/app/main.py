@@ -2,8 +2,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, HttpUrl
+try:
+    from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel, Field, HttpUrl
+except ModuleNotFoundError:
+    from app.compat import BaseModel, FastAPI, Field, HTTPException, HttpUrl
 
 from app.services.body_scan import BodyScanMeasurementService
 from app.services.tryon_pipeline import TryOnJobStore, TryOnPipelineService
