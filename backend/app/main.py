@@ -5,12 +5,14 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 
+from app.services.body_scan import BodyScanMeasurementService
 from app.services.tryon_pipeline import TryOnJobStore, TryOnPipelineService
 
 app = FastAPI(title="Raritone API", version="0.4.0")
 
 job_store = TryOnJobStore()
 pipeline_service = TryOnPipelineService(job_store)
+body_scan_service = BodyScanMeasurementService()
 avatar_store: dict[str, "AvatarProfile"] = {}
 wardrobe_store: dict[str, list["OutfitRecord"]] = {}
 
@@ -27,7 +29,11 @@ class Measurements(BaseModel):
 class BodyScanRequest(BaseModel):
     user_id: str = "demo-user"
     image_url: HttpUrl | None = None
-    camera_pose_landmarks: list[dict[str, float]] = Field(default_factory=list)
+    image_base64: str | None = None
+    image_width_px: int = Field(default=1080, gt=0)
+    image_height_px: int = Field(default=1920, gt=0)
+    reference_height_cm: float = Field(default=172.0, gt=0)
+    camera_pose_landmarks: list[dict[str, float | str]] = Field(default_factory=list)
 
 
 class Gender(str, Enum):
@@ -113,20 +119,27 @@ def health_check() -> dict[str, str]:
 
 @app.post("/scan-body")
 def scan_body(payload: BodyScanRequest) -> dict:
-    landmark_count = len(payload.camera_pose_landmarks)
-    measurements = Measurements(
-        height_cm=172.0 + min(landmark_count, 16) * 0.08,
-        chest_cm=96.0,
-        waist_cm=82.0,
-        hips_cm=99.0,
-        shoulder_cm=43.0,
-        leg_cm=91.0,
-    )
+    if payload.image_base64:
+        estimate = body_scan_service.estimate_from_image_base64(
+            payload.image_base64,
+            reference_height_cm=payload.reference_height_cm,
+        )
+    else:
+        estimate = body_scan_service.estimate_from_landmarks(
+            payload.camera_pose_landmarks,
+            image_width_px=payload.image_width_px,
+            image_height_px=payload.image_height_px,
+            reference_height_cm=payload.reference_height_cm,
+        )
+
+    measurements = Measurements(**estimate.measurements)
     return {
         "user_id": payload.user_id,
         "measurements": measurements.model_dump(),
-        "source": "mediapipe-opencv-ready",
-        "landmarks_detected": landmark_count,
+        "source": estimate.source,
+        "confidence": estimate.confidence,
+        "landmarks_detected": estimate.landmarks_detected,
+        "pipeline": "opencv-mediapipe-measurement-extraction",
     }
 
 

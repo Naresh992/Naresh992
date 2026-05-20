@@ -11,6 +11,7 @@ const requiredFiles = [
   'src/components/AvatarViewer.tsx',
   'src/components/OutfitCarousel.tsx',
   'src/avatar/avatarEngine.ts',
+  'src/avatar/modelAssets.ts',
   'src/screens/SplashScreen.tsx',
   'src/screens/OnboardingScreen.tsx',
   'src/screens/AuthScreen.tsx',

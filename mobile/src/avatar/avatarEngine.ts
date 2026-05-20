@@ -1,4 +1,5 @@
 import { Product } from '../data/products';
+import { avatarModelAssets, garmentModelAssets } from './modelAssets';
 
 export type Gender = 'male' | 'female';
 export type SkinTone = '#F1C6A8' | '#C58C67' | '#8D5A3B' | '#5C3828';
@@ -49,7 +50,7 @@ export const defaultAvatarProfile: AvatarProfile = {
     hipsCm: 96,
     legCm: 92,
   },
-  modelUrl: 'https://cdn.raritone.dev/models/avatars/raritone-rigged-avatar.glb',
+  modelUrl: avatarModelAssets[0].modelUrl,
 };
 
 export function generateAvatarProfile(partial: Partial<AvatarProfile> = {}): AvatarProfile {
@@ -85,8 +86,8 @@ export function fitGarmentToAvatar(product: Product, profile: AvatarProfile): Fi
   return {
     ...product,
     fittedScale: Number(categoryScale.toFixed(2)),
-    attachmentBone: product.category === 'Shoes' ? 'foot.L/R' : product.category === 'Pants' ? 'hips' : 'spine.003',
-    layerIndex: product.category === 'Jackets' ? 3 : product.category === 'Shirts' ? 2 : 1,
+    attachmentBone: garmentModelAssets.find((asset) => asset.sku === product.id)?.attachmentBone ?? (product.category === 'Shoes' ? 'foot.L/R' : product.category === 'Pants' ? 'hips' : 'spine.003'),
+    layerIndex: garmentModelAssets.find((asset) => asset.sku === product.id)?.layerIndex ?? (product.category === 'Jackets' ? 3 : product.category === 'Shirts' ? 2 : 1),
   };
 }
 
