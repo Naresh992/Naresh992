@@ -1,20 +1,34 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { createSavedOutfit, defaultAvatarProfile, fitGarmentToAvatar, FittedGarment, SavedOutfit } from '../avatar/avatarEngine';
+import { AvatarViewer } from '../components/AvatarViewer';
 import { Button } from '../components/Button';
+import { OutfitCarousel } from '../components/OutfitCarousel';
 import { Product, products } from '../data/products';
 import { colors, radius, shadows, spacing, typography } from '../styles/theme';
 
 type Props = { product: Product; onBack: () => void };
 
-export function TryOnScreen({ product }: Props) {
-  const [selectedOutfit, setSelectedOutfit] = useState(product);
+export function TryOnScreen({ product, onBack }: Props) {
+  const fittedProducts = useMemo(() => products.map((item) => fitGarmentToAvatar(item, defaultAvatarProfile)), []);
+  const initialGarment = useMemo(() => fitGarmentToAvatar(product, defaultAvatarProfile), [product]);
+  const [selectedOutfit, setSelectedOutfit] = useState<FittedGarment>(initialGarment);
+  const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
+  const activeLayers = useMemo(() => [selectedOutfit], [selectedOutfit]);
+
+  function saveCurrentLook() {
+    setSavedOutfits((items) => [createSavedOutfit(activeLayers, selectedOutfit.title), ...items]);
+  }
 
   return (
     <View style={styles.screen}>
       <View style={styles.topBar}>
-        <View>
-          <Text style={styles.eyebrow}>LIVE FIT PREVIEW</Text>
+        <Pressable onPress={onBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+        <View style={styles.titleBlock}>
+          <Text style={styles.eyebrow}>REAL-TIME GLB FITTING</Text>
           <Text style={styles.title}>Virtual Try-On</Text>
         </View>
         <View style={styles.fitPill}>
@@ -23,47 +37,29 @@ export function TryOnScreen({ product }: Props) {
       </View>
 
       <View style={styles.avatarFrame}>
-        <View style={styles.frameGlow} />
-        <View style={styles.avatarBox}>
-          <View style={styles.avatarHead} />
-          <View style={[styles.outfitBody, { backgroundColor: selectedOutfit.color, borderColor: selectedOutfit.accent }]}>
-            <View style={[styles.outfitLine, { backgroundColor: selectedOutfit.accent }]} />
-          </View>
-          <View style={styles.legsRow}>
-            <View style={styles.leg} />
-            <View style={styles.leg} />
-          </View>
+        <AvatarViewer profile={defaultAvatarProfile} garments={activeLayers} fullscreen />
+        <View style={styles.floatingActions}>
+          <Pressable style={({ pressed }) => [styles.floatButton, pressed && styles.pressed]}><Text style={styles.floatText}>♡</Text></Pressable>
+          <Pressable style={({ pressed }) => [styles.floatButton, pressed && styles.pressed]}><Text style={styles.floatText}>↗</Text></Pressable>
         </View>
         <View style={styles.lookMetaCard}>
-          <Text style={styles.lookTitle}>{selectedOutfit.title}</Text>
-          <Text style={styles.lookSubtitle}>{selectedOutfit.category} · Best size M</Text>
+          <View>
+            <Text style={styles.lookTitle}>{selectedOutfit.title}</Text>
+            <Text style={styles.lookSubtitle}>{selectedOutfit.category} · {selectedOutfit.attachmentBone} · {selectedOutfit.fittedScale}x fit</Text>
+          </View>
+          <Text style={styles.savedCount}>{savedOutfits.length} saved</Text>
         </View>
       </View>
 
       <View style={styles.bottomPanel}>
         <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Outfit rail</Text>
-          <Text style={styles.panelAction}>Swipe</Text>
+          <Text style={styles.panelTitle}>Outfit carousel</Text>
+          <Text style={styles.panelAction}>Layer-ready</Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderContent}>
-          {products.map((item) => {
-            const isSelected = selectedOutfit.id === item.id;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setSelectedOutfit(item)}
-                style={({ pressed }) => [styles.outfitCard, isSelected && styles.outfitCardActive, pressed && styles.pressed]}
-              >
-                <View style={[styles.outfitSwatch, { backgroundColor: item.color }]} />
-                <Text numberOfLines={1} style={[styles.outfitName, isSelected && styles.outfitNameActive]}>{item.title}</Text>
-                <Text style={[styles.outfitPrice, isSelected && styles.outfitPriceActive]}>${item.price}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <OutfitCarousel items={fittedProducts} selectedId={selectedOutfit.id} onSelect={setSelectedOutfit} />
         <View style={styles.buttonRow}>
-          <Button title="Save" variant="secondary" style={styles.actionButton} />
-          <Button title="Buy" style={styles.actionButton} />
+          <Button title="Save Outfit" variant="secondary" style={styles.actionButton} onPress={saveCurrentLook} />
+          <Button title="Buy Now" style={styles.actionButton} />
         </View>
       </View>
     </View>
@@ -81,7 +77,26 @@ const styles = StyleSheet.create({
     minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backText: {
+    color: colors.text,
+    fontSize: 34,
+    lineHeight: 36,
+    marginTop: -2,
+  },
+  titleBlock: {
+    flex: 1,
   },
   eyebrow: {
     ...typography.micro,
@@ -108,73 +123,42 @@ const styles = StyleSheet.create({
   avatarFrame: {
     flex: 1,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.xl,
     ...shadows.soft,
   },
-  frameGlow: {
+  floatingActions: {
     position: 'absolute',
-    width: 290,
-    height: 290,
-    borderRadius: 145,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    top: '12%',
+    right: spacing.lg,
+    top: spacing.lg,
+    gap: spacing.sm,
   },
-  avatarBox: {
+  floatButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ scale: 1.03 }],
   },
-  avatarHead: {
-    width: 66,
-    height: 66,
-    borderRadius: radius.pill,
-    backgroundColor: colors.text,
-    marginBottom: spacing.md,
-  },
-  outfitBody: {
-    width: 160,
-    height: 218,
-    borderRadius: radius.lg,
-    borderTopLeftRadius: 80,
-    borderTopRightRadius: 80,
-    borderWidth: 3,
-    alignItems: 'center',
-  },
-  outfitLine: {
-    width: 4,
-    height: 178,
-    borderRadius: radius.pill,
-    marginTop: spacing.lg,
-  },
-  legsRow: {
-    flexDirection: 'row',
-    gap: spacing.xl,
-    marginTop: spacing.sm,
-  },
-  leg: {
-    width: 46,
-    height: 116,
-    borderRadius: radius.md,
-    backgroundColor: colors.cardElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
+  floatText: {
+    ...typography.subheading,
+    color: colors.inverse,
   },
   lookMetaCard: {
     position: 'absolute',
-    left: spacing.xl,
-    right: spacing.xl,
-    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(0,0,0,0.78)',
     borderWidth: 1,
     borderColor: colors.borderStrong,
     padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
   lookTitle: {
     ...typography.subheading,
@@ -184,6 +168,10 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.muted,
     marginTop: spacing.xs,
+  },
+  savedCount: {
+    ...typography.caption,
+    color: colors.success,
   },
   bottomPanel: {
     borderRadius: radius.lg,
@@ -205,41 +193,6 @@ const styles = StyleSheet.create({
   panelAction: {
     ...typography.caption,
     color: colors.muted,
-  },
-  sliderContent: {
-    gap: spacing.md,
-    paddingRight: spacing.xl,
-  },
-  outfitCard: {
-    width: 132,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  outfitCardActive: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
-  outfitSwatch: {
-    height: 58,
-    borderRadius: radius.md,
-  },
-  outfitName: {
-    ...typography.caption,
-    color: colors.text,
-  },
-  outfitNameActive: {
-    color: colors.inverse,
-  },
-  outfitPrice: {
-    ...typography.caption,
-    color: colors.muted,
-  },
-  outfitPriceActive: {
-    color: colors.inverse,
   },
   pressed: {
     opacity: 0.78,

@@ -1,14 +1,19 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { defaultAvatarProfile, fitGarmentToAvatar } from '../avatar/avatarEngine';
+import { AvatarViewer } from '../components/AvatarViewer';
 import { Header } from '../components/Header';
+import { products } from '../data/products';
 import { colors, radius, spacing, typography } from '../styles/theme';
+
+const savedGarments = [fitGarmentToAvatar(products[0], defaultAvatarProfile), fitGarmentToAvatar(products[3], defaultAvatarProfile)];
 
 export function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <Header title="PROFILE" />
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarText}>R</Text>
@@ -18,20 +23,25 @@ export function ProfileScreen() {
             <Text style={styles.email}>member@raritone.app</Text>
           </View>
         </View>
+        <View style={styles.previewCard}>
+          <Text style={styles.sectionTitle}>Digital Avatar</Text>
+          <AvatarViewer profile={defaultAvatarProfile} garments={savedGarments} />
+        </View>
         <View style={styles.measureCard}>
           <Text style={styles.sectionTitle}>Body Profile</Text>
           <Row label="Scan version" value="v1.0" />
           <Row label="Height" value="175 cm" />
-          <Row label="Chest" value="34 in" />
-          <Row label="Waist" value="28 in" />
+          <Row label="Chest" value="86 cm" />
+          <Row label="Waist" value="71 cm" />
+          <Row label="Hips" value="96 cm" />
         </View>
         <View style={styles.menuCard}>
-          <Row label="Orders" value="›" />
-          <Row label="Saved products" value="›" />
+          <Row label="Saved outfits" value="2" />
+          <Row label="Wardrobe" value="8" />
+          <Row label="Favorites" value="6" />
           <Row label="Privacy" value="›" />
-          <Row label="Support" value="›" />
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -51,9 +61,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
-    padding: spacing.lg,
+    padding: spacing.xl,
     gap: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
   profileCard: {
     flexDirection: 'row',
@@ -89,6 +99,10 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: spacing.xs,
   },
+  previewCard: {
+    minHeight: 520,
+    gap: spacing.md,
+  },
   measureCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -123,7 +137,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   rowValue: {
-    ...typography.body,
+    ...typography.bodyMedium,
     color: colors.text,
   },
 });
