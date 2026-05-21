@@ -1,0 +1,328 @@
+from datetime import datetime, timezone
+import base64
+import hashlib
+import hmac
+import json
+import os
+import importlib.util
+
+if importlib.util.find_spec('fastapi') is not None:
+    from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse, Response
+    from pydantic import BaseModel, Field
+else:
+    from app.compat import FastAPI, HTTPException, BaseModel, Field
+
+    class Request:  # minimal typing shim for compat mode
+        client = None
+        method = 'GET'
+        url = type('URL', (), {'path': '/'})
+        headers = {}
+        cookies = {}
+
+    class UploadFile:  # pragma: no cover
+        content_type = 'application/octet-stream'
+
+    def File(*_args, **_kwargs):
+        return None
+
+    def Depends(fn):
+        return fn
+
+    def Header(*_args, **_kwargs):
+        return None
+
+    class JSONResponse(dict):
+        def __init__(self, content, status_code=200):
+            super().__init__(content)
+            self.status_code = status_code
+            self.headers = {}
+
+        def set_cookie(self, *_args, **_kwargs):
+            return None
+
+    class CORSMiddleware:  # pragma: no cover
+        pass
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.rate_limit import RedisRateLimiter
+from app.core.observability import build_request_id, configure_logging, log_request, now_ms
+from app.core.metrics import REQUEST_COUNT, REQUEST_LATENCY, render_metrics
+from app.core.security import create_access_token, create_refresh_token, decode_access_token, hash_password, verify_password
+from app.db.base import Base
+from app.db.session import engine, get_db
+from app.models.entities import AuditLog, Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
+from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
+from app.services.body_scan import BodyScanMeasurementService
+from app.services.payments import create_payment_intent, reconcile_stripe_event
+from app.services.queue import tryon_queue
+from app.services.storage import generate_signed_upload_url
+from app.services.tryon_worker import render_tryon_job
+
+app = FastAPI(title="Raritone API", version="1.4.0")
+if settings.require_fastapi_runtime and importlib.util.find_spec('fastapi') is None:
+    raise RuntimeError('FastAPI runtime is required in this environment')
+body_scan_service = BodyScanMeasurementService()
+rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
+configure_logging(settings.log_level)
+
+if hasattr(app, 'add_middleware'):
+    app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+def _parse_stripe_signature(signature_header: str) -> tuple[str, str]:
+    parts = dict(part.split('=', 1) for part in signature_header.split(',') if '=' in part)
+    timestamp = parts.get('t', '')
+    signature = parts.get('v1', '')
+    return timestamp, signature
+
+
+
+
+def _extract_bearer_token(authorization: str | None) -> str:
+    if not authorization or not authorization.lower().startswith('bearer '):
+        raise HTTPException(status_code=401, detail='missing bearer token')
+    return authorization.split(' ', 1)[1].strip()
+
+
+def _require_user_id(authorization: str | None) -> int:
+    token = _extract_bearer_token(authorization)
+    try:
+        claims = decode_access_token(token)
+        return int(claims.get('sub'))
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail='invalid access token') from exc
+
+
+
+def _require_admin_user(authorization: str | None, db: Session) -> User:
+    user_id = _require_user_id(authorization)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role != 'admin':
+        raise HTTPException(status_code=403, detail='admin access required')
+    return user
+
+
+def _write_audit_log(db: Session, user_id: int | None, action: str, metadata: dict) -> None:
+    db.add(AuditLog(user_id=user_id, action=action, metadata_json=json.dumps(metadata)))
+    db.commit()
+
+def _verify_oauth_id_token(token: str, provider: str) -> dict:
+    try:
+        import jwt
+        from jwt import PyJWKClient
+
+        jwks_url = settings.google_jwks_url if provider == 'google' else settings.apple_jwks_url
+        signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token).key
+        audience = settings.google_client_id if provider == 'google' else settings.apple_client_id
+        issuer = 'https://accounts.google.com' if provider == 'google' else 'https://appleid.apple.com'
+        decode_kwargs = {'algorithms': ['RS256'], 'issuer': issuer}
+        if audience:
+            decode_kwargs['audience'] = audience
+            decode_kwargs['options'] = {'verify_aud': True}
+        else:
+            decode_kwargs['options'] = {'verify_aud': False}
+        claims = jwt.decode(token, signing_key, **decode_kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f'invalid {provider} token') from exc
+
+    if not claims.get('sub'):
+        raise HTTPException(status_code=400, detail=f'{provider} token missing subject')
+    return {"provider": provider, "subject": claims['sub'], "email": claims.get('email')}
+
+if hasattr(app, 'middleware'):
+    @app.middleware('http')
+    async def security_and_rate_limit(request: Request, call_next):
+        client = request.client.host if request.client else 'unknown'
+        request_id = build_request_id()
+        start_ms = now_ms()
+        if not rate_limiter.allow(client):
+            log_request('rate_limited', request_id=request_id, path=request.url.path, client=client)
+            return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded', 'request_id': request_id})
+        if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and request.url.path.startswith('/auth/') is False:
+            csrf_header = request.headers.get('X-CSRF-Token')
+            csrf_cookie = request.cookies.get('csrf_token')
+            if csrf_cookie and csrf_header != csrf_cookie:
+                return JSONResponse(status_code=403, content={'detail': 'csrf validation failed'})
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'same-origin'
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        response.headers['X-Request-Id'] = request_id
+        status_code = str(getattr(response, 'status_code', 200))
+        REQUEST_COUNT.labels(request.method, request.url.path, status_code).inc()
+        REQUEST_LATENCY.labels(request.method, request.url.path).observe((now_ms()-start_ms)/1000)
+        log_request('request_complete', request_id=request_id, method=request.method, path=request.url.path, status=status_code, duration_ms=now_ms()-start_ms)
+        return response
+
+class MeasurementCreate(BaseModel):
+    height_cm: float = Field(gt=0)
+    shoulder_cm: float = Field(gt=0)
+    chest_cm: float = Field(gt=0)
+    waist_cm: float = Field(gt=0)
+    hips_cm: float = Field(gt=0)
+    inseam_cm: float = Field(gt=0)
+
+class TryOnRequest(BaseModel):
+    user_id: int
+    avatar_id: int
+
+
+
+@app.get('/metrics')
+def metrics():
+    payload, content_type = render_metrics()
+    return Response(content=payload, media_type=content_type)
+
+@app.get('/health')
+def health(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
+
+@app.post('/auth/register')
+def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(status_code=409, detail='email already exists')
+    user = User(email=payload.email, password_hash=hash_password(payload.password), role='user')
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"user_id": user.id, "email": user.email}
+
+@app.post('/auth/oauth/google')
+def oauth_google(token: str):
+    identity = _verify_oauth_id_token(token, 'google')
+    return {"status": "verified", **identity}
+
+@app.post('/auth/oauth/apple')
+def oauth_apple(token: str):
+    identity = _verify_oauth_id_token(token, 'apple')
+    return {"status": "verified", **identity}
+
+@app.post('/auth/login')
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail='invalid credentials')
+    access = create_access_token(str(user.id), user.role)
+    refresh, refresh_hash = create_refresh_token(str(user.id))
+    db.add(RefreshToken(user_id=user.id, token_hash=refresh_hash, revoked=False))
+    db.commit()
+    response = JSONResponse({"access_token": access, "refresh_token": refresh, "token_type": "bearer"})
+    csrf = hashlib.sha256(f"{user.id}:{datetime.now(timezone.utc).timestamp()}".encode()).hexdigest()
+    response.set_cookie('csrf_token', csrf, httponly=False, secure=True, samesite='lax')
+    return response
+
+@app.post('/auth/refresh')
+def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
+    refresh_hash = hashlib.sha256(payload.refresh_token.encode()).hexdigest()
+    token = db.query(RefreshToken).filter(RefreshToken.token_hash == refresh_hash, RefreshToken.revoked.is_(False)).first()
+    if not token:
+        raise HTTPException(status_code=401, detail='invalid refresh token')
+    token.revoked = True
+    user = db.query(User).filter(User.id == token.user_id).first()
+    access = create_access_token(str(user.id), user.role)
+    refresh, new_hash = create_refresh_token(str(user.id))
+    db.add(RefreshToken(user_id=user.id, token_hash=new_hash, revoked=False))
+    db.commit()
+    return {"access_token": access, "refresh_token": refresh}
+
+@app.post('/body-scan')
+async def body_scan(user_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
+    if image.content_type not in {'image/jpeg', 'image/png'}:
+        raise HTTPException(status_code=400, detail='invalid image type')
+    raw = await image.read()
+    encoded = base64.b64encode(raw).decode()
+    estimate = body_scan_service.estimate_from_image_base64(encoded)
+    m = Measurement(user_id=user_id, height_cm=estimate.measurements['height_cm'], shoulder_cm=estimate.measurements['shoulder_cm'], chest_cm=estimate.measurements['chest_cm'], waist_cm=estimate.measurements['waist_cm'], hips_cm=estimate.measurements['hips_cm'], inseam_cm=estimate.measurements['leg_cm'])
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return {"measurement_id": m.id, "source": estimate.source, "confidence": estimate.confidence}
+
+@app.post('/try-on')
+def create_tryon(payload: TryOnRequest, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
+    if token_user_id != payload.user_id:
+        raise HTTPException(status_code=403, detail='cannot create try-on for another user')
+    session = TryOnSession(user_id=payload.user_id, avatar_id=payload.avatar_id, status='queued')
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    job = tryon_queue.enqueue(render_tryon_job, session.id, retry=2)
+    return {"tryon_session_id": session.id, "status": session.status, "job_id": job.id}
+
+@app.get('/try-on/{session_id}')
+def get_tryon(session_id: int, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
+    session = db.query(TryOnSession).filter(TryOnSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='not found')
+    if session.user_id != token_user_id:
+        raise HTTPException(status_code=403, detail='forbidden')
+    return {"id": session.id, "status": session.status, "render_url": session.render_url}
+
+@app.post('/payments/intent')
+def payments_intent(amount_cents: int, currency: str = 'usd', user_id: int = 1):
+    return create_payment_intent(amount_cents=amount_cents, currency=currency, metadata={'user_id': str(user_id)})
+
+@app.post('/payments/webhook/stripe')
+async def stripe_webhook(request: Request, stripe_signature: str | None = Header(default=None, alias='Stripe-Signature'), db: Session = Depends(get_db)):
+    payload = await request.body()
+    secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+    if not secret or not stripe_signature:
+        raise HTTPException(status_code=400, detail='webhook not configured')
+    timestamp, signature = _parse_stripe_signature(stripe_signature)
+    signed_payload = f'{timestamp}.{payload.decode()}'.encode()
+    expected = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+    if not signature or not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail='invalid signature')
+    event = json.loads(payload.decode() or '{}')
+    try:
+        result = reconcile_stripe_event(db, event)
+    except SQLAlchemyError as exc:
+        log_request('stripe_webhook_db_error', error=str(exc))
+        raise HTTPException(status_code=503, detail='temporary webhook processing failure') from exc
+    return {'received': True, **result}
+
+
+@app.get('/admin/audit-logs')
+def list_audit_logs(limit: int = 50, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    admin = _require_admin_user(authorization, db)
+    rows = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(max(1, min(limit, 200))).all()
+    _write_audit_log(db, admin.id, 'admin.audit_logs.view', {'limit': limit, 'returned': len(rows)})
+    return {'items': [{'id': row.id, 'user_id': row.user_id, 'action': row.action, 'metadata_json': row.metadata_json} for row in rows]}
+
+
+@app.post('/admin/users/{user_id}/role')
+def update_user_role(user_id: int, role: str, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    admin = _require_admin_user(authorization, db)
+    if role not in {'user', 'admin'}:
+        raise HTTPException(status_code=400, detail='invalid role')
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail='user not found')
+    previous = target.role
+    target.role = role
+    db.commit()
+    _write_audit_log(db, admin.id, 'admin.user.role.update', {'target_user_id': user_id, 'previous_role': previous, 'new_role': role})
+    return {'user_id': target.id, 'role': target.role}
+
+
+@app.post('/try-on/{session_id}/retry')
+def retry_tryon(session_id: int, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
+    session = db.query(TryOnSession).filter(TryOnSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='not found')
+    if session.user_id != token_user_id:
+        raise HTTPException(status_code=403, detail='forbidden')
+    if session.status == 'completed':
+        return {'id': session.id, 'status': session.status, 'message': 'already completed'}
+    job = tryon_queue.enqueue(render_tryon_job, session.id, retry=2)
+    return {'id': session.id, 'status': session.status, 'job_id': job.id}
