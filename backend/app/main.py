@@ -53,7 +53,7 @@ from app.core.observability import build_request_id, configure_logging, log_requ
 from app.core.security import create_access_token, create_refresh_token, decode_access_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
+from app.models.entities import AuditLog, Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
 from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
 from app.services.body_scan import BodyScanMeasurementService
 from app.services.payments import create_payment_intent, reconcile_stripe_event
@@ -93,6 +93,20 @@ def _require_user_id(authorization: str | None) -> int:
         return int(claims.get('sub'))
     except Exception as exc:
         raise HTTPException(status_code=401, detail='invalid access token') from exc
+
+
+
+def _require_admin_user(authorization: str | None, db: Session) -> User:
+    user_id = _require_user_id(authorization)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.role != 'admin':
+        raise HTTPException(status_code=403, detail='admin access required')
+    return user
+
+
+def _write_audit_log(db: Session, user_id: int | None, action: str, metadata: dict) -> None:
+    db.add(AuditLog(user_id=user_id, action=action, metadata_json=json.dumps(metadata)))
+    db.commit()
 
 def _verify_oauth_id_token(token: str, provider: str) -> dict:
     try:
@@ -247,3 +261,26 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
     event = json.loads(payload.decode() or '{}')
     result = reconcile_stripe_event(db, event)
     return {'received': True, **result}
+
+
+@app.get('/admin/audit-logs')
+def list_audit_logs(limit: int = 50, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    admin = _require_admin_user(authorization, db)
+    rows = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(max(1, min(limit, 200))).all()
+    _write_audit_log(db, admin.id, 'admin.audit_logs.view', {'limit': limit, 'returned': len(rows)})
+    return {'items': [{'id': row.id, 'user_id': row.user_id, 'action': row.action, 'metadata_json': row.metadata_json} for row in rows]}
+
+
+@app.post('/admin/users/{user_id}/role')
+def update_user_role(user_id: int, role: str, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    admin = _require_admin_user(authorization, db)
+    if role not in {'user', 'admin'}:
+        raise HTTPException(status_code=400, detail='invalid role')
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail='user not found')
+    previous = target.role
+    target.role = role
+    db.commit()
+    _write_audit_log(db, admin.id, 'admin.user.role.update', {'target_user_id': user_id, 'previous_role': previous, 'new_role': role})
+    return {'user_id': target.id, 'role': target.role}
