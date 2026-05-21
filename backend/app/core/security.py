@@ -26,3 +26,7 @@ def create_refresh_token(sub: str, days: int = 7) -> tuple[str, str]:
     exp = datetime.now(timezone.utc) + timedelta(days=days)
     token = jwt.encode({"sub": sub, "type": "refresh", "exp": exp}, SECRET_KEY, algorithm=ALGO)
     return token, hashlib.sha256(token.encode()).hexdigest()
+
+
+def decode_access_token(token: str) -> dict:
+    return jwt.decode(token, SECRET_KEY, algorithms=[ALGO])

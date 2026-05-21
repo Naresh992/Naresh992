@@ -50,7 +50,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.rate_limit import RedisRateLimiter
 from app.core.observability import build_request_id, configure_logging, log_request, now_ms
-from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
+from app.core.security import create_access_token, create_refresh_token, decode_access_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
 from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
@@ -77,6 +77,22 @@ def _parse_stripe_signature(signature_header: str) -> tuple[str, str]:
     signature = parts.get('v1', '')
     return timestamp, signature
 
+
+
+
+def _extract_bearer_token(authorization: str | None) -> str:
+    if not authorization or not authorization.lower().startswith('bearer '):
+        raise HTTPException(status_code=401, detail='missing bearer token')
+    return authorization.split(' ', 1)[1].strip()
+
+
+def _require_user_id(authorization: str | None) -> int:
+    token = _extract_bearer_token(authorization)
+    try:
+        claims = decode_access_token(token)
+        return int(claims.get('sub'))
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail='invalid access token') from exc
 
 def _verify_oauth_id_token(token: str, provider: str) -> dict:
     try:
@@ -192,7 +208,10 @@ async def body_scan(user_id: int, image: UploadFile = File(...), db: Session = D
     return {"measurement_id": m.id, "source": estimate.source, "confidence": estimate.confidence}
 
 @app.post('/try-on')
-def create_tryon(payload: TryOnRequest, db: Session = Depends(get_db)):
+def create_tryon(payload: TryOnRequest, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
+    if token_user_id != payload.user_id:
+        raise HTTPException(status_code=403, detail='cannot create try-on for another user')
     session = TryOnSession(user_id=payload.user_id, avatar_id=payload.avatar_id, status='queued')
     db.add(session)
     db.commit()
@@ -201,10 +220,13 @@ def create_tryon(payload: TryOnRequest, db: Session = Depends(get_db)):
     return {"tryon_session_id": session.id, "status": session.status, "job_id": job.id}
 
 @app.get('/try-on/{session_id}')
-def get_tryon(session_id: int, db: Session = Depends(get_db)):
+def get_tryon(session_id: int, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
     session = db.query(TryOnSession).filter(TryOnSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail='not found')
+    if session.user_id != token_user_id:
+        raise HTTPException(status_code=403, detail='forbidden')
     return {"id": session.id, "status": session.status, "render_url": session.render_url}
 
 @app.post('/payments/intent')
