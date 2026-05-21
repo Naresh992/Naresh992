@@ -16,10 +16,10 @@ from app.core.rate_limit import RedisRateLimiter
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem, Order
+from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
 from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
 from app.services.body_scan import BodyScanMeasurementService
-from app.services.payments import create_payment_intent
+from app.services.payments import create_payment_intent, reconcile_stripe_event
 from app.services.queue import tryon_queue
 from app.services.storage import generate_signed_upload_url
 from app.services.tryon_worker import render_tryon_job
@@ -163,8 +163,8 @@ def get_tryon(session_id: int, db: Session = Depends(get_db)):
     return {"id": session.id, "status": session.status, "render_url": session.render_url}
 
 @app.post('/payments/intent')
-def payments_intent(amount_cents: int, currency: str = 'usd'):
-    return create_payment_intent(amount_cents=amount_cents, currency=currency)
+def payments_intent(amount_cents: int, currency: str = 'usd', user_id: int = 1):
+    return create_payment_intent(amount_cents=amount_cents, currency=currency, metadata={'user_id': str(user_id)})
 
 @app.post('/payments/webhook/stripe')
 async def stripe_webhook(request: Request, stripe_signature: str | None = Header(default=None, alias='Stripe-Signature'), db: Session = Depends(get_db)):
@@ -178,9 +178,5 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
     if not signature or not hmac.compare_digest(expected, signature):
         raise HTTPException(status_code=400, detail='invalid signature')
     event = json.loads(payload.decode() or '{}')
-    object_ref = event.get('data', {}).get('object', {})
-    user_id = int(object_ref.get('metadata', {}).get('user_id', 1))
-    order = Order(user_id=user_id, status='paid')
-    db.add(order)
-    db.commit()
-    return {'received': True}
+    result = reconcile_stripe_event(db, event)
+    return {'received': True, **result}

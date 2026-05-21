@@ -114,3 +114,12 @@ class AuditLog(Base, TimestampSoftDeleteMixin):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     action: Mapped[str] = mapped_column(String(255), index=True)
     metadata_json: Mapped[str | None] = mapped_column(Text)
+
+
+class PaymentEvent(Base, TimestampSoftDeleteMixin):
+    __tablename__ = "payment_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider: Mapped[str] = mapped_column(String(32), index=True)
+    external_event_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(128), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
