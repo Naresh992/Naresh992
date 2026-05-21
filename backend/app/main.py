@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 import base64
 import hashlib
+import hmac
 import os
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -10,38 +11,40 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.rate_limit import InMemoryRateLimiter
+from app.core.rate_limit import RedisRateLimiter
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
+from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem, Order
 from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
 from app.services.body_scan import BodyScanMeasurementService
 from app.services.payments import create_payment_intent
+from app.services.queue import tryon_queue
 from app.services.storage import generate_signed_upload_url
+from app.services.tryon_worker import render_tryon_job
 
-app = FastAPI(title="Raritone API", version="1.1.0")
+app = FastAPI(title="Raritone API", version="1.2.0")
 Base.metadata.create_all(bind=engine)
 body_scan_service = BodyScanMeasurementService()
-rate_limiter = InMemoryRateLimiter(max_requests=settings.rate_limit_per_minute)
+rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.middleware('http')
 async def security_and_rate_limit(request: Request, call_next):
     client = request.client.host if request.client else 'unknown'
     if not rate_limiter.allow(client):
         return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded'})
+    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and request.url.path.startswith('/auth/') is False:
+        csrf_header = request.headers.get('X-CSRF-Token')
+        csrf_cookie = request.cookies.get('csrf_token')
+        if csrf_cookie and csrf_header != csrf_cookie:
+            return JSONResponse(status_code=403, content={'detail': 'csrf validation failed'})
     response = await call_next(request)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'same-origin'
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
     return response
 
 class MeasurementCreate(BaseModel):
@@ -71,6 +74,14 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
     return {"user_id": user.id, "email": user.email}
 
+@app.post('/auth/oauth/google')
+def oauth_google(token: str):
+    return {"status": "received", "provider": "google", "token_preview": token[:8]}
+
+@app.post('/auth/oauth/apple')
+def oauth_apple(token: str):
+    return {"status": "received", "provider": "apple", "token_preview": token[:8]}
+
 @app.post('/auth/login')
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
@@ -80,7 +91,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     refresh, refresh_hash = create_refresh_token(str(user.id))
     db.add(RefreshToken(user_id=user.id, token_hash=refresh_hash, revoked=False))
     db.commit()
-    return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+    response = JSONResponse({"access_token": access, "refresh_token": refresh, "token_type": "bearer"})
+    csrf = hashlib.sha256(f"{user.id}:{datetime.now(timezone.utc).timestamp()}".encode()).hexdigest()
+    response.set_cookie('csrf_token', csrf, httponly=False, secure=True, samesite='lax')
+    return response
 
 @app.post('/auth/refresh')
 def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
@@ -96,14 +110,6 @@ def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
     db.commit()
     return {"access_token": access, "refresh_token": refresh}
 
-@app.post('/measurements')
-def create_measurement(user_id: int, payload: MeasurementCreate, db: Session = Depends(get_db)):
-    m = Measurement(user_id=user_id, height_cm=payload.height_cm, shoulder_cm=payload.shoulder_cm, chest_cm=payload.chest_cm, waist_cm=payload.waist_cm, hips_cm=payload.hips_cm, inseam_cm=payload.inseam_cm)
-    db.add(m)
-    db.commit()
-    db.refresh(m)
-    return {"measurement_id": m.id}
-
 @app.post('/body-scan')
 async def body_scan(user_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
     if image.content_type not in {'image/jpeg', 'image/png'}:
@@ -111,15 +117,7 @@ async def body_scan(user_id: int, image: UploadFile = File(...), db: Session = D
     raw = await image.read()
     encoded = base64.b64encode(raw).decode()
     estimate = body_scan_service.estimate_from_image_base64(encoded)
-    m = Measurement(
-        user_id=user_id,
-        height_cm=estimate.measurements['height_cm'],
-        shoulder_cm=estimate.measurements['shoulder_cm'],
-        chest_cm=estimate.measurements['chest_cm'],
-        waist_cm=estimate.measurements['waist_cm'],
-        hips_cm=estimate.measurements['hips_cm'],
-        inseam_cm=estimate.measurements['leg_cm'],
-    )
+    m = Measurement(user_id=user_id, height_cm=estimate.measurements['height_cm'], shoulder_cm=estimate.measurements['shoulder_cm'], chest_cm=estimate.measurements['chest_cm'], waist_cm=estimate.measurements['waist_cm'], hips_cm=estimate.measurements['hips_cm'], inseam_cm=estimate.measurements['leg_cm'])
     db.add(m)
     db.commit()
     db.refresh(m)
@@ -131,27 +129,30 @@ def create_tryon(payload: TryOnRequest, db: Session = Depends(get_db)):
     db.add(session)
     db.commit()
     db.refresh(session)
-    return {"tryon_session_id": session.id, "status": session.status}
+    job = tryon_queue.enqueue(render_tryon_job, session.id, retry=2)
+    return {"tryon_session_id": session.id, "status": session.status, "job_id": job.id}
 
-@app.post('/save-outfit')
-def save_outfit(user_id: int, tryon_session_id: int, preview_url: str, db: Session = Depends(get_db)):
-    item = SavedOutfit(user_id=user_id, tryon_session_id=tryon_session_id, preview_url=preview_url)
-    db.add(item)
-    db.commit()
-    db.refresh(item)
-    db.add(WardrobeItem(user_id=user_id, saved_outfit_id=item.id))
-    db.commit()
-    return {"saved_outfit_id": item.id}
-
-@app.get('/wardrobe')
-def wardrobe(user_id: int, db: Session = Depends(get_db)):
-    rows = db.query(SavedOutfit).filter(SavedOutfit.user_id == user_id, SavedOutfit.deleted_at.is_(None)).all()
-    return {"user_id": user_id, "outfits": [{"id": r.id, "preview_url": r.preview_url} for r in rows]}
-
-@app.post('/assets/signed-upload-url')
-def signed_upload_url(key: str, content_type: str):
-    return generate_signed_upload_url(key=key, content_type=content_type)
+@app.get('/try-on/{session_id}')
+def get_tryon(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(TryOnSession).filter(TryOnSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='not found')
+    return {"id": session.id, "status": session.status, "render_url": session.render_url}
 
 @app.post('/payments/intent')
 def payments_intent(amount_cents: int, currency: str = 'usd'):
     return create_payment_intent(amount_cents=amount_cents, currency=currency)
+
+@app.post('/payments/webhook/stripe')
+async def stripe_webhook(request: Request, stripe_signature: str | None = Header(default=None, alias='Stripe-Signature'), db: Session = Depends(get_db)):
+    payload = await request.body()
+    secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+    if not secret or not stripe_signature:
+        raise HTTPException(status_code=400, detail='webhook not configured')
+    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, stripe_signature):
+        raise HTTPException(status_code=400, detail='invalid signature')
+    order = Order(user_id=1, status='paid')
+    db.add(order)
+    db.commit()
+    return {'received': True}

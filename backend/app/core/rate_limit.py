@@ -1,18 +1,18 @@
-from collections import defaultdict, deque
-from time import time
+import hashlib
+from redis import Redis
+from app.core.config import settings
 
-class InMemoryRateLimiter:
+
+class RedisRateLimiter:
     def __init__(self, max_requests: int, window_seconds: int = 60) -> None:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self._events: dict[str, deque[float]] = defaultdict(deque)
+        self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
     def allow(self, key: str) -> bool:
-        now = time()
-        bucket = self._events[key]
-        while bucket and (now - bucket[0]) > self.window_seconds:
-            bucket.popleft()
-        if len(bucket) >= self.max_requests:
-            return False
-        bucket.append(now)
-        return True
+        slot = hashlib.sha256(key.encode()).hexdigest()
+        redis_key = f"rate:{slot}"
+        current = self.redis.incr(redis_key)
+        if current == 1:
+            self.redis.expire(redis_key, self.window_seconds)
+        return current <= self.max_requests
