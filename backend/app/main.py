@@ -312,3 +312,17 @@ def update_user_role(user_id: int, role: str, authorization: str | None = Header
     db.commit()
     _write_audit_log(db, admin.id, 'admin.user.role.update', {'target_user_id': user_id, 'previous_role': previous, 'new_role': role})
     return {'user_id': target.id, 'role': target.role}
+
+
+@app.post('/try-on/{session_id}/retry')
+def retry_tryon(session_id: int, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    token_user_id = _require_user_id(authorization)
+    session = db.query(TryOnSession).filter(TryOnSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail='not found')
+    if session.user_id != token_user_id:
+        raise HTTPException(status_code=403, detail='forbidden')
+    if session.status == 'completed':
+        return {'id': session.id, 'status': session.status, 'message': 'already completed'}
+    job = tryon_queue.enqueue(render_tryon_job, session.id, retry=2)
+    return {'id': session.id, 'status': session.status, 'job_id': job.id}

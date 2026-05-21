@@ -5,6 +5,9 @@ from app.db.session import SessionLocal
 from app.models.entities import TryOnSession
 
 
+MAX_RENDER_ATTEMPTS = 3
+
+
 def _build_render_url(tryon_session_id: int) -> str:
     bucket = os.getenv('S3_BUCKET', 'raritone-renders')
     ts = int(datetime.now(timezone.utc).timestamp())
@@ -17,19 +20,22 @@ def render_tryon_job(tryon_session_id: int) -> dict:
         session = db.query(TryOnSession).filter(TryOnSession.id == tryon_session_id).first()
         if not session:
             return {"status": "missing"}
+
+        session.render_attempts = (session.render_attempts or 0) + 1
         session.status = "processing"
         db.commit()
 
-        # Production worker contract: external renderer expected via RENDER_BACKEND_URL.
         render_backend = os.getenv('RENDER_BACKEND_URL')
         if not render_backend:
-            session.status = "failed"
+            session.error_message = "render backend not configured"
+            session.status = "dead_letter" if session.render_attempts >= MAX_RENDER_ATTEMPTS else "failed"
             db.commit()
-            return {"status": "failed", "error": "render backend not configured"}
+            return {"status": session.status, "error": session.error_message, "attempts": session.render_attempts}
 
         session.render_url = _build_render_url(tryon_session_id)
+        session.error_message = None
         session.status = "completed"
         db.commit()
-        return {"status": "completed", "render_url": session.render_url}
+        return {"status": "completed", "render_url": session.render_url, "attempts": session.render_attempts}
     finally:
         db.close()

@@ -74,6 +74,8 @@ class TryOnSession(Base, TimestampSoftDeleteMixin):
     avatar_id: Mapped[int] = mapped_column(ForeignKey("avatars.id"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     render_url: Mapped[str | None] = mapped_column(Text)
+    render_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text)
 
 class SavedOutfit(Base, TimestampSoftDeleteMixin):
     __tablename__ = "saved_outfits"
