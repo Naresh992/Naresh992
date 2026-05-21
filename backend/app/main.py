@@ -49,6 +49,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.rate_limit import RedisRateLimiter
+from app.core.observability import build_request_id, configure_logging, log_request, now_ms
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
@@ -64,6 +65,7 @@ app = FastAPI(title="Raritone API", version="1.2.0")
 Base.metadata.create_all(bind=engine)
 body_scan_service = BodyScanMeasurementService()
 rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
+configure_logging(settings.log_level)
 
 if hasattr(app, 'add_middleware'):
     app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -92,8 +94,11 @@ if hasattr(app, 'middleware'):
     @app.middleware('http')
     async def security_and_rate_limit(request: Request, call_next):
         client = request.client.host if request.client else 'unknown'
+        request_id = build_request_id()
+        start_ms = now_ms()
         if not rate_limiter.allow(client):
-            return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded'})
+            log_request('rate_limited', request_id=request_id, path=request.url.path, client=client)
+            return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded', 'request_id': request_id})
         if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and request.url.path.startswith('/auth/') is False:
             csrf_header = request.headers.get('X-CSRF-Token')
             csrf_cookie = request.cookies.get('csrf_token')
@@ -104,6 +109,8 @@ if hasattr(app, 'middleware'):
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['Referrer-Policy'] = 'same-origin'
         response.headers['Content-Security-Policy'] = "default-src 'self'"
+        response.headers['X-Request-Id'] = request_id
+        log_request('request_complete', request_id=request_id, method=request.method, path=request.url.path, status=getattr(response, 'status_code', 200), duration_ms=now_ms()-start_ms)
         return response
 
 class MeasurementCreate(BaseModel):

@@ -7,5 +7,6 @@ class Settings:
     aws_region = os.getenv('AWS_REGION', 'us-east-1')
     redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     rate_limit_per_minute = int(os.getenv('RATE_LIMIT_PER_MINUTE', '120'))
+    log_level = os.getenv('LOG_LEVEL', 'INFO')
 
 settings = Settings()
