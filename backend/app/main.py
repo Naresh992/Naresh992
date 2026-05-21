@@ -1,19 +1,29 @@
 from datetime import datetime, timezone
+import base64
 import hashlib
 import os
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.rate_limit import InMemoryRateLimiter
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
-from app.models.entities import Avatar, Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
+from app.models.entities import Measurement, RefreshToken, SavedOutfit, TryOnSession, User, WardrobeItem
 from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest
+from app.services.body_scan import BodyScanMeasurementService
+from app.services.payments import create_payment_intent
+from app.services.storage import generate_signed_upload_url
 
-app = FastAPI(title="Raritone API", version="1.0.0")
+app = FastAPI(title="Raritone API", version="1.1.0")
 Base.metadata.create_all(bind=engine)
+body_scan_service = BodyScanMeasurementService()
+rate_limiter = InMemoryRateLimiter(max_requests=settings.rate_limit_per_minute)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,13 +33,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware('http')
+async def security_and_rate_limit(request: Request, call_next):
+    client = request.client.host if request.client else 'unknown'
+    if not rate_limiter.allow(client):
+        return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded'})
+    response = await call_next(request)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    return response
+
 class MeasurementCreate(BaseModel):
-    height_cm: float
-    shoulder_cm: float
-    chest_cm: float
-    waist_cm: float
-    hips_cm: float
-    inseam_cm: float
+    height_cm: float = Field(gt=0)
+    shoulder_cm: float = Field(gt=0)
+    chest_cm: float = Field(gt=0)
+    waist_cm: float = Field(gt=0)
+    hips_cm: float = Field(gt=0)
+    inseam_cm: float = Field(gt=0)
 
 class TryOnRequest(BaseModel):
     user_id: int
@@ -37,7 +58,7 @@ class TryOnRequest(BaseModel):
 
 @app.get('/health')
 def health(db: Session = Depends(get_db)):
-    db.execute("SELECT 1")
+    db.execute(text("SELECT 1"))
     return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
 
 @app.post('/auth/register')
@@ -77,21 +98,32 @@ def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 @app.post('/measurements')
 def create_measurement(user_id: int, payload: MeasurementCreate, db: Session = Depends(get_db)):
-    m = Measurement(user_id=user_id, **payload.model_dump())
+    m = Measurement(user_id=user_id, height_cm=payload.height_cm, shoulder_cm=payload.shoulder_cm, chest_cm=payload.chest_cm, waist_cm=payload.waist_cm, hips_cm=payload.hips_cm, inseam_cm=payload.inseam_cm)
     db.add(m)
     db.commit()
     db.refresh(m)
     return {"measurement_id": m.id}
 
 @app.post('/body-scan')
-def body_scan(user_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
+async def body_scan(user_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
     if image.content_type not in {'image/jpeg', 'image/png'}:
         raise HTTPException(status_code=400, detail='invalid image type')
-    m = Measurement(user_id=user_id, height_cm=172, shoulder_cm=42, chest_cm=96, waist_cm=82, hips_cm=99, inseam_cm=79)
+    raw = await image.read()
+    encoded = base64.b64encode(raw).decode()
+    estimate = body_scan_service.estimate_from_image_base64(encoded)
+    m = Measurement(
+        user_id=user_id,
+        height_cm=estimate.measurements['height_cm'],
+        shoulder_cm=estimate.measurements['shoulder_cm'],
+        chest_cm=estimate.measurements['chest_cm'],
+        waist_cm=estimate.measurements['waist_cm'],
+        hips_cm=estimate.measurements['hips_cm'],
+        inseam_cm=estimate.measurements['leg_cm'],
+    )
     db.add(m)
     db.commit()
     db.refresh(m)
-    return {"measurement_id": m.id, "source": "opencv-mediapipe"}
+    return {"measurement_id": m.id, "source": estimate.source, "confidence": estimate.confidence}
 
 @app.post('/try-on')
 def create_tryon(payload: TryOnRequest, db: Session = Depends(get_db)):
@@ -107,8 +139,7 @@ def save_outfit(user_id: int, tryon_session_id: int, preview_url: str, db: Sessi
     db.add(item)
     db.commit()
     db.refresh(item)
-    wardrobe = WardrobeItem(user_id=user_id, saved_outfit_id=item.id)
-    db.add(wardrobe)
+    db.add(WardrobeItem(user_id=user_id, saved_outfit_id=item.id))
     db.commit()
     return {"saved_outfit_id": item.id}
 
@@ -116,3 +147,11 @@ def save_outfit(user_id: int, tryon_session_id: int, preview_url: str, db: Sessi
 def wardrobe(user_id: int, db: Session = Depends(get_db)):
     rows = db.query(SavedOutfit).filter(SavedOutfit.user_id == user_id, SavedOutfit.deleted_at.is_(None)).all()
     return {"user_id": user_id, "outfits": [{"id": r.id, "preview_url": r.preview_url} for r in rows]}
+
+@app.post('/assets/signed-upload-url')
+def signed_upload_url(key: str, content_type: str):
+    return generate_signed_upload_url(key=key, content_type=content_type)
+
+@app.post('/payments/intent')
+def payments_intent(amount_cents: int, currency: str = 'usd'):
+    return create_payment_intent(amount_cents=amount_cents, currency=currency)
