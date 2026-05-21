@@ -9,7 +9,7 @@ import importlib.util
 if importlib.util.find_spec('fastapi') is not None:
     from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import JSONResponse, Response
     from pydantic import BaseModel, Field
 else:
     from app.compat import FastAPI, HTTPException, BaseModel, Field
@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.rate_limit import RedisRateLimiter
 from app.core.observability import build_request_id, configure_logging, log_request, now_ms
+from app.core.metrics import REQUEST_COUNT, REQUEST_LATENCY, render_metrics
 from app.core.security import create_access_token, create_refresh_token, decode_access_token, hash_password, verify_password
 from app.db.base import Base
 from app.db.session import engine, get_db
@@ -153,7 +154,10 @@ if hasattr(app, 'middleware'):
         response.headers['Referrer-Policy'] = 'same-origin'
         response.headers['Content-Security-Policy'] = "default-src 'self'"
         response.headers['X-Request-Id'] = request_id
-        log_request('request_complete', request_id=request_id, method=request.method, path=request.url.path, status=getattr(response, 'status_code', 200), duration_ms=now_ms()-start_ms)
+        status_code = str(getattr(response, 'status_code', 200))
+        REQUEST_COUNT.labels(request.method, request.url.path, status_code).inc()
+        REQUEST_LATENCY.labels(request.method, request.url.path).observe((now_ms()-start_ms)/1000)
+        log_request('request_complete', request_id=request_id, method=request.method, path=request.url.path, status=status_code, duration_ms=now_ms()-start_ms)
         return response
 
 class MeasurementCreate(BaseModel):
@@ -167,6 +171,13 @@ class MeasurementCreate(BaseModel):
 class TryOnRequest(BaseModel):
     user_id: int
     avatar_id: int
+
+
+
+@app.get('/metrics')
+def metrics():
+    payload, content_type = render_metrics()
+    return Response(content=payload, media_type=content_type)
 
 @app.get('/health')
 def health(db: Session = Depends(get_db)):

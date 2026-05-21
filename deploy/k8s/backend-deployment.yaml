@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raritone-backend
+  labels:
+    app: raritone-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: raritone-backend
+  template:
+    metadata:
+      labels:
+        app: raritone-backend
+    spec:
+      containers:
+        - name: backend
+          image: raritone/backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: raritone-backend-secrets
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: raritone-backend
+spec:
+  selector:
+    app: raritone-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
