@@ -4,10 +4,46 @@ import hashlib
 import hmac
 import json
 import os
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+import importlib.util
+
+if importlib.util.find_spec('fastapi') is not None:
+    from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel, Field
+else:
+    from app.compat import FastAPI, HTTPException, BaseModel, Field
+
+    class Request:  # minimal typing shim for compat mode
+        client = None
+        method = 'GET'
+        url = type('URL', (), {'path': '/'})
+        headers = {}
+        cookies = {}
+
+    class UploadFile:  # pragma: no cover
+        content_type = 'application/octet-stream'
+
+    def File(*_args, **_kwargs):
+        return None
+
+    def Depends(fn):
+        return fn
+
+    def Header(*_args, **_kwargs):
+        return None
+
+    class JSONResponse(dict):
+        def __init__(self, content, status_code=200):
+            super().__init__(content)
+            self.status_code = status_code
+            self.headers = {}
+
+        def set_cookie(self, *_args, **_kwargs):
+            return None
+
+    class CORSMiddleware:  # pragma: no cover
+        pass
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -29,7 +65,8 @@ Base.metadata.create_all(bind=engine)
 body_scan_service = BodyScanMeasurementService()
 rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
 
-app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+if hasattr(app, 'add_middleware'):
+    app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 def _parse_stripe_signature(signature_header: str) -> tuple[str, str]:
@@ -51,22 +88,23 @@ def _verify_oauth_id_token(token: str, provider: str) -> dict:
         raise HTTPException(status_code=400, detail=f'{provider} token missing subject')
     return {"provider": provider, "subject": claims['sub'], "email": claims.get('email')}
 
-@app.middleware('http')
-async def security_and_rate_limit(request: Request, call_next):
-    client = request.client.host if request.client else 'unknown'
-    if not rate_limiter.allow(client):
-        return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded'})
-    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and request.url.path.startswith('/auth/') is False:
-        csrf_header = request.headers.get('X-CSRF-Token')
-        csrf_cookie = request.cookies.get('csrf_token')
-        if csrf_cookie and csrf_header != csrf_cookie:
-            return JSONResponse(status_code=403, content={'detail': 'csrf validation failed'})
-    response = await call_next(request)
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['Referrer-Policy'] = 'same-origin'
-    response.headers['Content-Security-Policy'] = "default-src 'self'"
-    return response
+if hasattr(app, 'middleware'):
+    @app.middleware('http')
+    async def security_and_rate_limit(request: Request, call_next):
+        client = request.client.host if request.client else 'unknown'
+        if not rate_limiter.allow(client):
+            return JSONResponse(status_code=429, content={'detail': 'rate limit exceeded'})
+        if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'} and request.url.path.startswith('/auth/') is False:
+            csrf_header = request.headers.get('X-CSRF-Token')
+            csrf_cookie = request.cookies.get('csrf_token')
+            if csrf_cookie and csrf_header != csrf_cookie:
+                return JSONResponse(status_code=403, content={'detail': 'csrf validation failed'})
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'same-origin'
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        return response
 
 class MeasurementCreate(BaseModel):
     height_cm: float = Field(gt=0)

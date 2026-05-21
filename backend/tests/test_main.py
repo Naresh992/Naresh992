@@ -1,4 +1,10 @@
+import importlib.util
 import os
+
+import pytest
+
+if importlib.util.find_spec("fastapi") is None or importlib.util.find_spec("sqlalchemy") is None:
+    pytest.skip("fastapi/sqlalchemy not installed in this environment", allow_module_level=True)
 
 from fastapi.testclient import TestClient
 
