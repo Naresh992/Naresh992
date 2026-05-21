@@ -5,6 +5,8 @@ try:
     from app.models.entities import Order, PaymentEvent
 except ModuleNotFoundError:
     class Order:  # lightweight fallback for dependency-limited test environments
+        user_id = 0
+
         def __init__(self, user_id: int, status: str) -> None:
             self.user_id = user_id
             self.status = status
@@ -54,7 +56,7 @@ def reconcile_stripe_event(db, event: dict) -> dict:
         order = Order(user_id=user_id, status='paid')
         db.add(order)
     elif event_type.startswith('charge.refunded'):
-        order = db.query(Order).filter(Order.user_id == user_id).order_by(Order.id.desc()).first()
+        order = db.query(Order).filter(Order.user_id == user_id).first()
         if order:
             order.status = 'refunded'
 

@@ -48,3 +48,27 @@ def test_reconcile_dedup_and_process() -> None:
     second = reconcile_stripe_event(db, event)
     assert first['status'] == 'processed'
     assert second['status'] == 'duplicate'
+
+
+def test_reconcile_missing_event_id_is_ignored() -> None:
+    db = DummyDB()
+    result = reconcile_stripe_event(db, {'type': 'payment_intent.succeeded'})
+    assert result['status'] == 'ignored'
+
+
+def test_reconcile_refund_marks_existing_order() -> None:
+    db = DummyDB()
+    paid_event = {
+        'id': 'evt_paid',
+        'type': 'payment_intent.succeeded',
+        'data': {'object': {'metadata': {'user_id': '5'}}},
+    }
+    refund_event = {
+        'id': 'evt_refund',
+        'type': 'charge.refunded',
+        'data': {'object': {'metadata': {'user_id': '5'}}},
+    }
+    reconcile_stripe_event(db, paid_event)
+    db.events = {}
+    reconcile_stripe_event(db, refund_event)
+    assert db.orders['lookup'].status == 'refunded'
