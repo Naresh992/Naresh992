@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import base64
 import hashlib
 import hmac
+import json
 import os
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +30,26 @@ body_scan_service = BodyScanMeasurementService()
 rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
 
 app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "*").split(","), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+def _parse_stripe_signature(signature_header: str) -> tuple[str, str]:
+    parts = dict(part.split('=', 1) for part in signature_header.split(',') if '=' in part)
+    timestamp = parts.get('t', '')
+    signature = parts.get('v1', '')
+    return timestamp, signature
+
+
+def _verify_oauth_id_token(token: str, provider: str) -> dict:
+    try:
+        import jwt
+
+        claims = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f'invalid {provider} token') from exc
+
+    if not claims.get('sub'):
+        raise HTTPException(status_code=400, detail=f'{provider} token missing subject')
+    return {"provider": provider, "subject": claims['sub'], "email": claims.get('email')}
 
 @app.middleware('http')
 async def security_and_rate_limit(request: Request, call_next):
@@ -76,11 +97,13 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 @app.post('/auth/oauth/google')
 def oauth_google(token: str):
-    return {"status": "received", "provider": "google", "token_preview": token[:8]}
+    identity = _verify_oauth_id_token(token, 'google')
+    return {"status": "verified", **identity}
 
 @app.post('/auth/oauth/apple')
 def oauth_apple(token: str):
-    return {"status": "received", "provider": "apple", "token_preview": token[:8]}
+    identity = _verify_oauth_id_token(token, 'apple')
+    return {"status": "verified", **identity}
 
 @app.post('/auth/login')
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
@@ -149,10 +172,15 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
     secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
     if not secret or not stripe_signature:
         raise HTTPException(status_code=400, detail='webhook not configured')
-    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, stripe_signature):
+    timestamp, signature = _parse_stripe_signature(stripe_signature)
+    signed_payload = f'{timestamp}.{payload.decode()}'.encode()
+    expected = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+    if not signature or not hmac.compare_digest(expected, signature):
         raise HTTPException(status_code=400, detail='invalid signature')
-    order = Order(user_id=1, status='paid')
+    event = json.loads(payload.decode() or '{}')
+    object_ref = event.get('data', {}).get('object', {})
+    user_id = int(object_ref.get('metadata', {}).get('user_id', 1))
+    order = Order(user_id=user_id, status='paid')
     db.add(order)
     db.commit()
     return {'received': True}

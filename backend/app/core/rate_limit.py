@@ -1,5 +1,6 @@
 import hashlib
 from redis import Redis
+from redis.exceptions import RedisError
 from app.core.config import settings
 
 
@@ -12,7 +13,11 @@ class RedisRateLimiter:
     def allow(self, key: str) -> bool:
         slot = hashlib.sha256(key.encode()).hexdigest()
         redis_key = f"rate:{slot}"
-        current = self.redis.incr(redis_key)
-        if current == 1:
-            self.redis.expire(redis_key, self.window_seconds)
-        return current <= self.max_requests
+        try:
+            current = self.redis.incr(redis_key)
+            if current == 1:
+                self.redis.expire(redis_key, self.window_seconds)
+            return current <= self.max_requests
+        except RedisError:
+            # Fail-open to avoid turning transient Redis outages into total API downtime.
+            return True
