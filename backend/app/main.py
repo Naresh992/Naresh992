@@ -45,6 +45,7 @@ else:
     class CORSMiddleware:  # pragma: no cover
         pass
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -61,8 +62,7 @@ from app.services.queue import tryon_queue
 from app.services.storage import generate_signed_upload_url
 from app.services.tryon_worker import render_tryon_job
 
-app = FastAPI(title="Raritone API", version="1.2.0")
-Base.metadata.create_all(bind=engine)
+app = FastAPI(title="Raritone API", version="1.3.0")
 body_scan_service = BodyScanMeasurementService()
 rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
 configure_logging(settings.log_level)
@@ -111,8 +111,11 @@ def _write_audit_log(db: Session, user_id: int | None, action: str, metadata: di
 def _verify_oauth_id_token(token: str, provider: str) -> dict:
     try:
         import jwt
+        from jwt import PyJWKClient
 
-        claims = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+        jwks_url = settings.google_jwks_url if provider == 'google' else settings.apple_jwks_url
+        signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token).key
+        claims = jwt.decode(token, signing_key, algorithms=['RS256'], options={"verify_aud": False})
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f'invalid {provider} token') from exc
 
@@ -259,7 +262,11 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
     if not signature or not hmac.compare_digest(expected, signature):
         raise HTTPException(status_code=400, detail='invalid signature')
     event = json.loads(payload.decode() or '{}')
-    result = reconcile_stripe_event(db, event)
+    try:
+        result = reconcile_stripe_event(db, event)
+    except SQLAlchemyError as exc:
+        log_request('stripe_webhook_db_error', error=str(exc))
+        raise HTTPException(status_code=503, detail='temporary webhook processing failure') from exc
     return {'received': True, **result}
 
 

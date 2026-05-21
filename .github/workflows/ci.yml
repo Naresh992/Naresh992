@@ -9,3 +9,4 @@ jobs:
         with: {python-version: '3.11'}
       - run: pip install -r backend/requirements.txt
       - run: ./scripts_verify.sh
+      - run: python -m compileall backend/alembic
