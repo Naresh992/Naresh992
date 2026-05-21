@@ -13,5 +13,7 @@ class Settings:
     require_fastapi_runtime = os.getenv('REQUIRE_FASTAPI_RUNTIME', 'false').lower() == 'true'
     google_jwks_url = os.getenv('GOOGLE_JWKS_URL', 'https://www.googleapis.com/oauth2/v3/certs')
     apple_jwks_url = os.getenv('APPLE_JWKS_URL', 'https://appleid.apple.com/auth/keys')
+    google_client_id = os.getenv('GOOGLE_CLIENT_ID', '')
+    apple_client_id = os.getenv('APPLE_CLIENT_ID', '')
 
 settings = Settings()

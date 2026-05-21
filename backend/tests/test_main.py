@@ -26,3 +26,8 @@ def test_health() -> None:
 def test_oauth_token_validation_rejects_invalid() -> None:
     response = client.post('/auth/oauth/google', params={'token': 'not-a-jwt'})
     assert response.status_code == 400
+
+
+def test_oauth_token_validation_requires_well_formed_jwt() -> None:
+    response = client.post('/auth/oauth/apple', params={'token': 'bad-token'})
+    assert response.status_code == 400

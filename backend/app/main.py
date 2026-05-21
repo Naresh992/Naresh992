@@ -62,7 +62,9 @@ from app.services.queue import tryon_queue
 from app.services.storage import generate_signed_upload_url
 from app.services.tryon_worker import render_tryon_job
 
-app = FastAPI(title="Raritone API", version="1.3.0")
+app = FastAPI(title="Raritone API", version="1.4.0")
+if settings.require_fastapi_runtime and importlib.util.find_spec('fastapi') is None:
+    raise RuntimeError('FastAPI runtime is required in this environment')
 body_scan_service = BodyScanMeasurementService()
 rate_limiter = RedisRateLimiter(max_requests=settings.rate_limit_per_minute)
 configure_logging(settings.log_level)
@@ -115,7 +117,15 @@ def _verify_oauth_id_token(token: str, provider: str) -> dict:
 
         jwks_url = settings.google_jwks_url if provider == 'google' else settings.apple_jwks_url
         signing_key = PyJWKClient(jwks_url).get_signing_key_from_jwt(token).key
-        claims = jwt.decode(token, signing_key, algorithms=['RS256'], options={"verify_aud": False})
+        audience = settings.google_client_id if provider == 'google' else settings.apple_client_id
+        issuer = 'https://accounts.google.com' if provider == 'google' else 'https://appleid.apple.com'
+        decode_kwargs = {'algorithms': ['RS256'], 'issuer': issuer}
+        if audience:
+            decode_kwargs['audience'] = audience
+            decode_kwargs['options'] = {'verify_aud': True}
+        else:
+            decode_kwargs['options'] = {'verify_aud': False}
+        claims = jwt.decode(token, signing_key, **decode_kwargs)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f'invalid {provider} token') from exc
 
